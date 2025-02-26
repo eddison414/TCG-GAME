@@ -267,775 +267,720 @@ function drawCard(player, count = 1) {
     updateUI();
 }
 
-// Initialize game
-function initializeGame() {
-    // Reset game state
-    gameState.memoryGauge = 0;
-    gameState.currentPhase = GAME_PHASES.DRAW;
-    gameState.turn = 1;
-    gameState.gameLog = [];
-    
-    // Initialize player decks
-    gameState.players.playerA.deck = initializeDeck();
-    gameState.players.playerB.deck = initializeDeck();
-    
-    // Shuffle decks
-    shuffle(gameState.players.playerA.deck);
-    shuffle(gameState.players.playerB.deck);
-    
-    // Clear player states
-    for (const player of Object.values(gameState.players)) {
-        player.hand = [];
-        player.field = [];
-        player.security = [];
-        player.trashPile = [];
-    }
-    
-    // Set up security cards
-    gameState.players.playerA.security = gameState.players.playerA.deck.splice(0, 5);
-    gameState.players.playerB.security = gameState.players.playerB.deck.splice(0, 5);
-    
-    // Draw initial hands
-    gameState.players.playerA.hand = gameState.players.playerA.deck.splice(0, 5);
-    gameState.players.playerB.hand = gameState.players.playerB.deck.splice(0, 5);
-    
-    // Set first player
-    gameState.currentPlayer = 'playerA';
-    
-    logGameEvent("Game initialized! Player A goes first.");
-    updateUI();
-}
+// Deck builder functionality
+const deckBuilder = {
+    allCards: {},
+    playerDeck: [],
+    minDeckSize: 40,
+    maxDeckSize: 50,
+    maxCopiesPerCard: 4,
 
-// Update UI
-function updateUI() {
-    const currentPlayerObj = gameState.players[gameState.currentPlayer];
-    
-    // Update memory gauge and turn info
-    domElements.memoryGauge.textContent = `Memory Gauge: ${gameState.memoryGauge} | Turn: ${gameState.turn} | Phase: ${gameState.currentPhase} | Current Player: ${currentPlayerObj.name}`;
-    
-    // Update security counts
-    domElements.playerASecurity.textContent = `Security: ${gameState.players.playerA.security.length}`;
-    domElements.playerBSecurity.textContent = `Security: ${gameState.players.playerB.security.length}`;
-
-    // Render Player A's Field
-    renderPlayerField('playerA');
-    
-    // Render Player B's Field
-    renderPlayerField('playerB');
-    
-    // Render Player A's Hand
-    renderPlayerHand('playerA');
-    
-    // Render Player B's Hand (face down)
-    renderPlayerHand('playerB', true);
-    
-    // AI turn handling
-    if (gameState.currentPlayer === 'playerB') {
-        setTimeout(aiTakeAction, 1000); // AI acts after a 1-second delay
-    }
-}
-
-// Render a player's field
-function renderPlayerField(playerKey) {
-    const player = gameState.players[playerKey];
-    const fieldElement = domElements[`${playerKey}Field`];
-    fieldElement.innerHTML = '';
-    
-    player.field.forEach((card, index) => {
-        const cardElement = createCardElement(card);
+    // Initialize the deck builder
+    initialize: function() {
+        // Create card templates library from existing templates
+        this.allCards = { ...cardTemplates };
         
-        // Add active/exhausted visual state
-        if (card.hasAttacked) {
-            cardElement.classList.add('exhausted');
-            cardElement.style.transform = 'rotate(90deg)';
-        }
+        // Add additional card templates for deck variety
+        this.addCardTemplates();
         
-        // Add card ability text if present
-        if (card.ability) {
-            const abilityElement = document.createElement('div');
-            abilityElement.className = 'passive';
-            abilityElement.textContent = card.ability;
-            cardElement.appendChild(abilityElement);
-        }
+        // Create default deck (for new players)
+        this.createDefaultDeck();
         
-        // Add attack functionality only for current player's cards that can attack
-        if (playerKey === gameState.currentPlayer && 
-            gameState.currentPhase === GAME_PHASES.ATTACK && 
-            card.type === CARD_TYPES.CREATURE && 
-            !card.hasAttacked && 
-            card.canAttack) {
-            cardElement.onclick = () => attackWithCreature(playerKey, index);
-            cardElement.classList.add('attackable');
-        } else {
-            cardElement.classList.add('disabled');
-        }
+        // Set up the deck builder UI
+        this.setupUI();
         
-        fieldElement.appendChild(cardElement);
-    });
+        // Load any saved deck from local storage
+        this.loadDeck();
+    },
     
-    // Add placeholder text if field is empty
-    if (player.field.length === 0) {
-        const placeholderText = document.createElement('div');
-        placeholderText.textContent = 'No cards in play';
-        placeholderText.className = 'placeholder-text';
-        fieldElement.appendChild(placeholderText);
-    }
-}
-
-// Render a player's hand
-function renderPlayerHand(playerKey, faceDown = false) {
-    const player = gameState.players[playerKey];
-    const handElement = domElements[`${playerKey}Hand`];
-    handElement.innerHTML = '';
-    
-    if (faceDown) {
-        // Render face-down cards for opponent
-        for (let i = 0; i < player.hand.length; i++) {
-            const cardElement = document.createElement('div');
-            cardElement.className = 'card';
-            cardElement.style.backgroundImage = 'url(images/card_back.png)';
-            handElement.appendChild(cardElement);
-        }
-    } else {
-        // Render actual cards for player
-        player.hand.forEach((card, index) => {
-            const cardElement = createCardElement(card);
-            
-            // Add play functionality only for current player and play phase
-            if (playerKey === gameState.currentPlayer && 
-                gameState.currentPhase === GAME_PHASES.PLAY && 
-                canPlayCard(playerKey, card)) {
-                cardElement.onclick = () => playCard(playerKey, index);
-                cardElement.classList.add('playable');
-            } else {
-                cardElement.classList.add('disabled');
+    // Add more card templates for variety
+    addCardTemplates: function() {
+        const newTemplates = {
+            warriorChampion: {
+                name: 'Warrior Champion', type: CARD_TYPES.CREATURE, creatureType: CREATURE_TYPES.WARRIOR, 
+                stage: 2, cost: 6, cp: 7000, evolvesFrom: 'Warrior Grunt', 
+                ability: 'Guardian', 
+                effect: 'Your other Warriors gain +1000 CP', 
+                securityEffect: null, 
+                image: 'images/warrior_champion.png'
+            },
+            holyLight: {
+                name: 'Holy Light', type: CARD_TYPES.SPELL, creatureType: null, 
+                stage: null, cost: 4, cp: null, evolvesFrom: null, 
+                ability: null, 
+                effect: 'Heal all your creatures for 1000 CP', 
+                securityEffect: 'Add this card to your hand and draw 1 card', 
+                image: 'images/holy_light.png'
+            },
+            archmage: {
+                name: 'Archmage', type: CARD_TYPES.CREATURE, creatureType: CREATURE_TYPES.MAGE, 
+                stage: 2, cost: 5, cp: 4000, evolvesFrom: 'Mage Apprentice', 
+                ability: 'Spellweaver', 
+                effect: 'When played, add a spell from your trash pile to your hand', 
+                securityEffect: null, 
+                image: 'images/archmage.png'
+            },
+            shadowAssassin: {
+                name: 'Shadow Assassin', type: CARD_TYPES.CREATURE, creatureType: CREATURE_TYPES.ROGUE, 
+                stage: 2, cost: 5, cp: 5000, evolvesFrom: 'Rogue Scout', 
+                ability: 'Ambush', 
+                effect: 'When attacking, your opponent cannot block with creatures that have less than 3000 CP', 
+                securityEffect: null, 
+                image: 'images/shadow_assassin.png'
+            },
+            templarKnight: {
+                name: 'Templar Knight', type: CARD_TYPES.CREATURE, creatureType: CREATURE_TYPES.PALADIN, 
+                stage: 2, cost: 7, cp: 6000, evolvesFrom: 'Paladin Guard', 
+                ability: 'Divine Shield', 
+                effect: 'This creature cannot be destroyed by spell effects', 
+                securityEffect: null, 
+                image: 'images/templar_knight.png'
+            },
+            frostbolt: {
+                name: 'Frostbolt', type: CARD_TYPES.SPELL, creatureType: null, 
+                stage: null, cost: 2, cp: null, evolvesFrom: null, 
+                ability: null, 
+                effect: 'Freeze an enemy creature (it cannot attack next turn)', 
+                securityEffect: 'Freeze the attacking creature', 
+                image: 'images/frostbolt.png'
             }
+        };
+        
+        // Add new templates to existing card templates
+        Object.assign(this.allCards, newTemplates);
+    },
+    
+    // Create default starter deck
+    createDefaultDeck: function() {
+        this.playerDeck = [];
+        
+        // Add starter cards (balanced mix of cards)
+        this.addToDeck('warriorGrunt', 4);
+        this.addToDeck('paladinGuard', 4);
+        this.addToDeck('mageApprentice', 4);
+        this.addToDeck('rogueScout', 4);
+        this.addToDeck('fireball', 3);
+        this.addToDeck('healingWave', 3);
+        this.addToDeck('warriorChampion', 2);
+        this.addToDeck('templarKnight', 2);
+        this.addToDeck('archmage', 2);
+        this.addToDeck('shadowAssassin', 2);
+        this.addToDeck('holyLight', 2);
+        this.addToDeck('frostbolt', 2);
+        
+        // Save this deck
+        this.saveDeck();
+    },
+    
+    // Add multiple copies of a card to deck
+    addToDeck: function(templateId, count = 1) {
+        for (let i = 0; i < count; i++) {
+            // Create a unique card instance
+            const card = createCardFromTemplate(templateId);
+            if (card) {
+                this.playerDeck.push({
+                    templateId,
+                    card
+                });
+            }
+        }
+    },
+    
+    // Save deck to local storage
+    saveDeck: function() {
+        try {
+            // Create a simplified version of the deck (just template IDs)
+            const deckData = this.playerDeck.map(item => item.templateId);
+            localStorage.setItem('playerDeck', JSON.stringify(deckData));
+            console.log('Deck saved successfully');
+        } catch (error) {
+            console.error('Error saving deck:', error);
+        }
+    },
+    
+    // Load deck from local storage
+    loadDeck: function() {
+        try {
+            const savedDeck = localStorage.getItem('playerDeck');
+            if (savedDeck) {
+                // Clear current deck
+                this.playerDeck = [];
+                
+                // Recreate deck from template IDs
+                const deckData = JSON.parse(savedDeck);
+                deckData.forEach(templateId => {
+                    this.addToDeck(templateId);
+                });
+                console.log('Deck loaded successfully');
+                
+                // Update deck display
+                this.updateDeckDisplay();
+            }
+        } catch (error) {
+            console.error('Error loading deck:', error);
+        }
+    },
+    
+    // Count cards in deck by template ID
+    countCardInDeck: function(templateId) {
+        return this.playerDeck.filter(item => item.templateId === templateId).length;
+    },
+    
+    // Remove a card from the deck
+    removeFromDeck: function(templateId) {
+        // Find index of the first matching card
+        const index = this.playerDeck.findIndex(item => item.templateId === templateId);
+        if (index !== -1) {
+            // Remove the card
+            this.playerDeck.splice(index, 1);
             
-            handElement.appendChild(cardElement);
+            // Update UI
+            this.updateDeckDisplay();
+            this.updateCardLibraryButtons();
+            this.saveDeck();
+        }
+    },
+    
+    // Set up the deck builder UI
+    setupUI: function() {
+        // Create deck builder container
+        const deckBuilderContainer = document.createElement('div');
+        deckBuilderContainer.id = 'deckBuilderContainer';
+        deckBuilderContainer.className = 'deck-builder-container';
+        
+        // Add toggle button to game UI
+        const toggleButton = document.createElement('button');
+        toggleButton.id = 'toggleDeckBuilder';
+        toggleButton.textContent = 'Deck Builder';
+        toggleButton.className = 'toggle-deck-builder';
+        toggleButton.onclick = this.toggleDeckBuilder.bind(this);
+        
+        // Add toggle button to game UI
+        const headerContainer = document.querySelector('.game-board');
+        headerContainer.insertBefore(toggleButton, headerContainer.firstChild);
+        
+        // Create deck builder components
+        const deckBuilderHTML = `
+            <div class="deck-builder-header">
+                <h2>Deck Builder</h2>
+                <div class="deck-builder-stats">
+                    <span id="deckCount">0</span>/<span id="deckMax">${this.maxDeckSize}</span> cards
+                </div>
+                <button id="closeDeckBuilder">×</button>
+            </div>
+            <div class="deck-builder-content">
+                <div class="card-library">
+                    <h3>Available Cards</h3>
+                    <div id="cardLibrary" class="card-grid"></div>
+                </div>
+                <div class="current-deck">
+                    <h3>Your Deck</h3>
+                    <div class="deck-actions">
+                        <button id="saveDeckBtn">Save Deck</button>
+                        <button id="resetDeckBtn">Reset to Default</button>
+                    </div>
+                    <div id="currentDeck" class="card-list"></div>
+                </div>
+            </div>
+        `;
+        
+        deckBuilderContainer.innerHTML = deckBuilderHTML;
+        document.body.appendChild(deckBuilderContainer);
+        
+        // Add event listeners
+        document.getElementById('closeDeckBuilder').addEventListener('click', this.toggleDeckBuilder.bind(this));
+        document.getElementById('saveDeckBtn').addEventListener('click', this.saveDeck.bind(this));
+        document.getElementById('resetDeckBtn').addEventListener('click', () => {
+            if (confirm('Reset your deck to default? This will delete your current deck.')) {
+                this.createDefaultDeck();
+                this.updateDeckDisplay();
+                this.updateCardLibraryButtons();
+            }
         });
-    }
-    
-    // Add placeholder text if hand is empty
-    if (player.hand.length === 0) {
-        const placeholderText = document.createElement('div');
-        placeholderText.textContent = 'No cards in hand';
-        placeholderText.className = 'placeholder-text';
-        handElement.appendChild(placeholderText);
-    }
-}
-
-// Create a card element
-function createCardElement(card) {
-    const cardElement = document.createElement('div');
-    cardElement.className = 'card';
-    cardElement.dataset.cardId = card.id;
-    cardElement.style.backgroundImage = `url(${card.image})`;
-    cardElement.style.backgroundSize = 'cover';
-
-    const nameElement = document.createElement('div');
-    nameElement.className = 'name';
-    nameElement.textContent = card.name;
-    
-    const costElement = document.createElement('div');
-    costElement.className = 'cost';
-    costElement.textContent = card.cost;
-
-    const cpElement = document.createElement('div');
-    cpElement.className = 'cp';
-    cpElement.textContent = card.cp;
-
-    const statsElement = document.createElement('div');
-    statsElement.className = 'stats';
-    statsElement.textContent = `STR: ${card.stats.STR} | DEX: ${card.stats.DEX} | VIT: ${card.stats.VIT} | INT: ${card.stats.INT}`;
-
-    cardElement.appendChild(nameElement);
-    cardElement.appendChild(costElement);
-    if (card.cp) cardElement.appendChild(cpElement);
-    cardElement.appendChild(statsElement);
-    
-    // Add card effect tooltip
-    if (card.effect) {
-        cardElement.title = card.effect;
-    }
-
-    return cardElement;
-}
-
-// Check if a card can be played
-function canPlayCard(playerKey, card) {
-    const cost = card.cost;
-    if (playerKey === 'playerA') {
-        return gameState.memoryGauge - cost >= -10; // Prevent memory gauge from going too negative
-    } else {
-        return gameState.memoryGauge + cost <= 10; // Prevent memory gauge from going too positive
-    }
-}
-
-// Play a card
-function playCard(playerKey, handIndex) {
-    const player = gameState.players[playerKey];
-    if (playerKey !== gameState.currentPlayer || gameState.currentPhase !== GAME_PHASES.PLAY) { 
-        logGameEvent("Can't play card - not your turn or wrong phase!");
-        return;
-    }
-    
-    const card = player.hand[handIndex];
-    const cost = card.cost;
-    
-    // Adjust memory gauge based on which player played the card
-    if (playerKey === 'playerA') {
-        gameState.memoryGauge -= cost;
-    } else {
-        gameState.memoryGauge += cost;
-    }
-    
-    // Handle card type specific actions
-    if (card.type === CARD_TYPES.CREATURE) {
-        player.field.push(card);
-        player.hand.splice(handIndex, 1);
-        logGameEvent(`${player.name} played ${card.name} (${card.cp} CP)`);
         
-        // Implement card effects
-        if (card.name === 'Mage Apprentice') {
-            drawCard(playerKey, 1);
-            logGameEvent(`${card.name}'s effect: Draw 1 card`);
-        }
-    } else if (card.type === CARD_TYPES.SPELL) {
-        // Implement spell effects
-        logGameEvent(`${player.name} played ${card.name}. Effect: ${card.effect}`);
+        // Populate card library
+        this.populateCardLibrary();
         
-        if (card.name === 'Fireball') {
-            const opponent = playerKey === 'playerA' ? 'playerB' : 'playerA';
-            const opponentField = gameState.players[opponent].field;
-            
-            if (opponentField.length > 0) {
-                // For AI, choose strongest enemy creature
-                // For player, prompt to choose target
-                let targetIndex;
-                
-                if (playerKey === 'playerA') {
-                    // For simplicity, target first creature (in full game, add targeting UI)
-                    targetIndex = 0;
-                    // Ideally, add a function here to let player select a target
-                } else {
-                    // AI targets strongest enemy
-                    targetIndex = opponentField.reduce((maxIndex, card, currentIndex, array) => 
-                        card.cp > array[maxIndex].cp ? currentIndex : maxIndex, 0);
-                }
-                
-                const targetCard = opponentField[targetIndex];
-                logGameEvent(`${card.name} deals 3000 damage to ${targetCard.name}!`);
-                
-                // Check if creature is destroyed
-                if (targetCard.cp <= 3000) {
-                    logGameEvent(`${targetCard.name} was destroyed!`);
-                    gameState.players[opponent].trashPile.push(targetCard);
-                    opponentField.splice(targetIndex, 1);
-                } else {
-                    logGameEvent(`${targetCard.name} survived with ${targetCard.cp - 3000} CP remaining!`);
-                    // In a full implementation, reduce CP temporarily or permanently
-                }
-            } else {
-                logGameEvent("No target available for Fireball!");
-            }
-        } else if (card.name === 'Healing Wave') {
-            const friendlyField = player.field;
-            
-            if (friendlyField.length > 0) {
-                // For simplicity, heal first creature
-                // In a full game, add targeting UI
-                const targetIndex = 0;
-                const targetCard = friendlyField[targetIndex];
-                
-                logGameEvent(`${card.name} restores 2000 CP to ${targetCard.name}!`);
-                // In a full implementation, increase CP temporarily or permanently
-            } else {
-                logGameEvent("No target available for Healing Wave!");
-            }
-        }
+        // Update deck display
+        this.updateDeckDisplay();
         
-        // Move spell to trash pile after use
-        player.trashPile.push(card);
-        player.hand.splice(handIndex, 1);
-    }
+        // Add styles
+        this.addStyles();
+    },
     
-    updateUI();
-}
-
-// Attack with a creature
-function attackWithCreature(playerKey, fieldIndex) {
-    const player = gameState.players[playerKey];
-    const opponent = playerKey === 'playerA' ? 'playerB' : 'playerA';
-    
-    if (playerKey !== gameState.currentPlayer || gameState.currentPhase !== GAME_PHASES.ATTACK) { 
-        logGameEvent("Can't attack - not your turn or wrong phase!");
-        return;
-    }
-    
-    const attacker = player.field[fieldIndex];
-    
-    // Check if card can attack
-    if (!attacker.canAttack || attacker.hasAttacked) {
-        logGameEvent(`${attacker.name} cannot attack right now!`);
-        return;
-    }
-    
-    // Mark card as having attacked
-    attacker.hasAttacked = true;
-    
-    // Adjust memory gauge
-    if (playerKey === 'playerA') {
-        gameState.memoryGauge -= 1;
-    } else {
-        gameState.memoryGauge += 1;
-    }
-    
-    logGameEvent(`${player.name}'s ${attacker.name} (${attacker.cp} CP) is attacking!`);
-    
-    // Check if opponent will block
-    let block = false;
-    let blockerIndex = -1;
-    
-    if (gameState.players[opponent].field.length > 0) {
-        if (opponent === 'playerA') {
-            // For human player, ask if they want to block
-            // In a real implementation, use a more sophisticated UI
-            block = confirm(`${gameState.players[opponent].name}, do you want to block the attack with a creature?`);
-            if (block) {
-                // For simplicity, use first creature. In real game, let player choose.
-                blockerIndex = 0;
-            }
+    // Toggle deck builder visibility
+    toggleDeckBuilder: function() {
+        const deckBuilder = document.getElementById('deckBuilderContainer');
+        if (deckBuilder.classList.contains('visible')) {
+            deckBuilder.classList.remove('visible');
         } else {
-            // AI decides whether to block
-            const blockDecision = aiDecideToBlock(opponent, attacker);
-            if (blockDecision.block) {
-                block = true;
-                blockerIndex = blockDecision.blockerIndex;
-            }
+            deckBuilder.classList.add('visible');
+            this.updateDeckDisplay();
+            this.updateCardLibraryButtons();
         }
-    }
+    },
     
-    // Check if Rogue Scout's Stealth ability applies
-    const hasStealth = attacker.name === 'Rogue Scout' && 
-                      attacker.ability === 'Stealth' && 
-                      !attacker.hasAttackedBefore;
-                      
-    if (hasStealth) {
-        logGameEvent(`${attacker.name}'s Stealth ability prevents blocking!`);
-        attacker.hasAttackedBefore = true;
-        block = false;
-    }
-    
-    // Handle blocking
-    if (block && blockerIndex >= 0) {
-        const blocker = gameState.players[opponent].field[blockerIndex];
-        logGameEvent(`${gameState.players[opponent].name} blocks with ${blocker.name} (${blocker.cp} CP)`);
+    // Populate card library with all available cards
+    populateCardLibrary: function() {
+        const cardLibrary = document.getElementById('cardLibrary');
+        cardLibrary.innerHTML = '';
         
-        // Apply Paladin Guard special ability if applicable
-        let blockerBonus = 0;
-        if (blocker.name === 'Paladin Guard') {
-            blockerBonus = 1000;
-            logGameEvent(`${blocker.name}'s ability reduces damage by 1000!`);
-        }
+        // Group cards by type and creature type
+        const groupedCards = {};
         
-        // Compare CP to determine winner
-        if (attacker.cp > blocker.cp + blockerBonus) {
-            logGameEvent(`${blocker.name} was defeated in battle!`);
-            gameState.players[opponent].trashPile.push(blocker);
-            gameState.players[opponent].field.splice(blockerIndex, 1);
-        } else {
-            logGameEvent(`${attacker.name}'s attack was blocked!`);
-            if (attacker.cp < blocker.cp) {
-                logGameEvent(`${attacker.name} was defeated in battle!`);
-                player.trashPile.push(attacker);
-                player.field.splice(fieldIndex, 1);
-            } else {
-                logGameEvent("Both creatures survived the battle!");
-            }
-        }
-    } else {
-        // Attack goes through to security stack
-        if (gameState.players[opponent].security.length > 0) {
-            const securityCard = gameState.players[opponent].security.pop();
-            logGameEvent(`Security card revealed: ${securityCard.name}!`);
+        // Process each card template
+        Object.entries(this.allCards).forEach(([templateId, card]) => {
+            // Create category key
+            const categoryKey = card.type === CARD_TYPES.CREATURE 
+                ? `${card.type}-${card.creatureType}` 
+                : card.type;
             
-            // Handle security card effects
-            if (securityCard.type === CARD_TYPES.CREATURE) {
-                logGameEvent(`Security creature ${securityCard.name} (${securityCard.cp} CP) defends!`);
-                if (attacker.cp > securityCard.cp) {
-                    logGameEvent(`${securityCard.name} was defeated!`);
-                    gameState.players[opponent].trashPile.push(securityCard);
-                } else {
-                    logGameEvent(`${attacker.name} was defeated by security!`);
-                    player.trashPile.push(attacker);
-                    player.field.splice(fieldIndex, 1);
-                    gameState.players[opponent].hand.push(securityCard);
-                }
-            } else if (securityCard.type === CARD_TYPES.SPELL) {
-                logGameEvent(`Security effect: ${securityCard.securityEffect}`);
-                
-                // Implement security effects
-                if (securityCard.name === 'Fireball') {
-                    logGameEvent(`Fireball deals 2000 damage to ${attacker.name}!`);
-                    if (attacker.cp <= 2000) {
-                        logGameEvent(`${attacker.name} was destroyed!`);
-                        player.trashPile.push(attacker);
-                        player.field.splice(fieldIndex, 1);
-                    } else {
-                        logGameEvent(`${attacker.name} survived with ${attacker.cp - 2000} CP!`);
-                    }
-                } else if (securityCard.name === 'Healing Wave') {
-                    logGameEvent(`${securityCard.securityEffect}`);
-                    gameState.players[opponent].hand.push(securityCard);
-                }
-                
-                if (securityCard.name !== 'Healing Wave') {
-                    gameState.players[opponent].trashPile.push(securityCard);
-                }
+            // Initialize category if needed
+            if (!groupedCards[categoryKey]) {
+                groupedCards[categoryKey] = {
+                    name: card.type === CARD_TYPES.CREATURE 
+                        ? `${card.creatureType} ${card.type}s` 
+                        : `${card.type}s`,
+                    cards: []
+                };
             }
-        } else {
-            logGameEvent(`${player.name} wins! ${gameState.players[opponent].name} has no security left!`);
-            setTimeout(() => {
-                alert(`${player.name} wins!`);
-                initializeGame();
-            }, 1000);
+            
+            // Add card to category
+            groupedCards[categoryKey].cards.push({
+                templateId,
+                card
+            });
+        });
+        
+        // Create section for each category
+        Object.values(groupedCards).forEach(category => {
+            // Create category header
+            const categoryHeader = document.createElement('div');
+            categoryHeader.className = 'card-category-header';
+            categoryHeader.textContent = category.name;
+            cardLibrary.appendChild(categoryHeader);
+            
+            // Create cards grid for this category
+            const categoryGrid = document.createElement('div');
+            categoryGrid.className = 'category-grid';
+            
+            // Add each card in category
+            category.cards.forEach(({templateId, card}) => {
+                const cardElement = document.createElement('div');
+                cardElement.className = 'library-card';
+                cardElement.dataset.templateId = templateId;
+                
+                // Create card preview
+                const cardPreview = document.createElement('div');
+                cardPreview.className = 'card-preview';
+                cardPreview.style.backgroundImage = `url(${card.image})`;
+                
+                // Create card info
+                const cardInfo = document.createElement('div');
+                cardInfo.className = 'card-info';
+                cardInfo.innerHTML = `
+                    <div class="card-name">${card.name}</div>
+                    <div class="card-type">${card.type}${card.creatureType ? ` - ${card.creatureType}` : ''}</div>
+                    <div class="card-cost">Cost: ${card.cost}</div>
+                    ${card.cp ? `<div class="card-cp">CP: ${card.cp}</div>` : ''}
+                    ${card.ability ? `<div class="card-ability">${card.ability}</div>` : ''}
+                    <div class="card-effect">${card.effect}</div>
+                `;
+                
+                // Create add button
+                const addButton = document.createElement('button');
+                addButton.className = 'add-card-btn';
+                addButton.textContent = 'Add to Deck';
+                addButton.onclick = () => this.addCardToDeck(templateId);
+                
+                // Create counter span to show how many in deck
+                const counterSpan = document.createElement('span');
+                counterSpan.className = 'card-count';
+                counterSpan.id = `count-${templateId}`;
+                counterSpan.textContent = this.countCardInDeck(templateId);
+                
+                // Add elements to card
+                cardElement.appendChild(cardPreview);
+                cardElement.appendChild(cardInfo);
+                cardElement.appendChild(addButton);
+                cardElement.appendChild(counterSpan);
+                
+                // Add card to category grid
+                categoryGrid.appendChild(cardElement);
+            });
+            
+            // Add category grid to library
+            cardLibrary.appendChild(categoryGrid);
+        });
+    },
+    
+    // Add a card to the player's deck
+    addCardToDeck: function(templateId) {
+        // Check if deck is full
+        if (this.playerDeck.length >= this.maxDeckSize) {
+            alert(`Your deck is full (maximum ${this.maxDeckSize} cards)`);
             return;
         }
-    }
-    
-    updateUI();
-}
-
-// AI decides whether to block and which card to use
-function aiDecideToBlock(playerKey, attacker) {
-    const player = gameState.players[playerKey];
-    let bestBlockerIndex = -1;
-    let bestBlockerValue = -Infinity;
-    
-    // Go through potential blockers and find the best one
-    for (let i = 0; i < player.field.length; i++) {
-        const blocker = player.field[i];
-        if (blocker.type !== CARD_TYPES.CREATURE) continue;
         
-        // Calculate blocker's value (CP + any special abilities)
-        let blockerValue = blocker.cp;
-        
-        // Paladin Guard gets bonus for blocking
-        if (blocker.name === 'Paladin Guard') {
-            blockerValue += 1000;
+        // Check if max copies reached
+        const currentCount = this.countCardInDeck(templateId);
+        if (currentCount >= this.maxCopiesPerCard) {
+            alert(`You can only have ${this.maxCopiesPerCard} copies of each card in your deck`);
+            return;
         }
         
-        // If blocker can defeat attacker, consider it
-        if (blockerValue >= attacker.cp) {
-            // Choose the blocker with the lowest CP that can still win
-            // (to preserve stronger creatures for attacking)
-            if (bestBlockerIndex === -1 || blockerValue < bestBlockerValue) {
-                bestBlockerIndex = i;
-                bestBlockerValue = blockerValue;
+        // Add card to deck
+        this.addToDeck(templateId);
+        
+        // Update UI
+        this.updateDeckDisplay();
+        this.updateCardLibraryButtons();
+        
+        // Save the updated deck
+        this.saveDeck();
+    },
+    
+    // Update the deck display
+    updateDeckDisplay: function() {
+        const currentDeckElement = document.getElementById('currentDeck');
+        const deckCountElement = document.getElementById('deckCount');
+        
+        if (!currentDeckElement || !deckCountElement) return;
+        
+        // Clear current display
+        currentDeckElement.innerHTML = '';
+        
+        // Group cards by name for better organization
+        const groupedCards = {};
+        this.playerDeck.forEach(({templateId, card}) => {
+            if (!groupedCards[card.name]) {
+                groupedCards[card.name] = {
+                    templateId,
+                    card,
+                    count: 1
+                };
+            } else {
+                groupedCards[card.name].count++;
             }
+        });
+        
+        // Create and add card elements
+        Object.values(groupedCards).forEach(item => {
+            const cardElement = document.createElement('div');
+            cardElement.className = 'deck-card';
+            
+            cardElement.innerHTML = `
+                <div class="deck-card-info">
+                    <span class="deck-card-count">${item.count}x</span>
+                    <span class="deck-card-name">${item.card.name}</span>
+                    <span class="deck-card-type">${item.card.type}${item.card.creatureType ? ` - ${item.card.creatureType}` : ''}</span>
+                </div>
+                <div class="deck-card-cost">Cost: ${item.card.cost}</div>
+            `;
+            
+            // Add removal button
+            const removeButton = document.createElement('button');
+            removeButton.className = 'remove-card-btn';
+            removeButton.textContent = '−';
+            removeButton.onclick = () => this.removeFromDeck(item.templateId);
+            
+            cardElement.appendChild(removeButton);
+            currentDeckElement.appendChild(cardElement);
+        });
+        
+        // Update deck count
+        deckCountElement.textContent = this.playerDeck.length;
+        
+        // Add validation class for deck size
+        const deckStats = document.querySelector('.deck-builder-stats');
+        if (this.playerDeck.length < this.minDeckSize) {
+            deckStats.className = 'deck-builder-stats invalid';
+        } else {
+            deckStats.className = 'deck-builder-stats valid';
         }
-    }
+    },
     
-    // Decide whether to block based on best blocker
-    if (bestBlockerIndex !== -1) {
-        return { block: true, blockerIndex: bestBlockerIndex };
-    }
-    
-    return { block: false, blockerIndex: -1 };
-}
-
-// AI takes an action
-function aiTakeAction() {
-    if (gameState.currentPlayer !== 'playerB') return;
-    
-    // Handle different game phases
-    switch (gameState.currentPhase) {
-        case GAME_PHASES.DRAW:
-            // Draw a card at start of turn
-            drawCard('playerB');
-            
-            // Reset all creatures' attack eligibility
-            gameState.players.playerB.field.forEach(card => {
-                card.canAttack = true;
-                card.hasAttacked = false;
-            });
-            
-            // Move to Play phase
-            gameState.currentPhase = GAME_PHASES.PLAY;
-            logGameEvent("AI enters play phase");
-            updateUI();
-            setTimeout(aiTakeAction, 1000);
-            break;
-            
-        case GAME_PHASES.PLAY:
-            // Try to play cards
-            let cardPlayed = false;
-            
-            // First try to play creatures (highest CP first)
-            const playableCreatures = gameState.players.playerB.hand.filter(card => 
-                card.type === CARD_TYPES.CREATURE && canPlayCard('playerB', card)
-            );
-            
-            if (playableCreatures.length > 0) {
-                // Sort by highest CP
-                playableCreatures.sort((a, b) => b.cp - a.cp);
-                const cardToPlay = playableCreatures[0];
-                const handIndex = gameState.players.playerB.hand.findIndex(card => card.id === cardToPlay.id);
+    // Update card library buttons based on current deck
+    updateCardLibraryButtons: function() {
+        Object.keys(this.allCards).forEach(templateId => {
+            // Update count display
+            const countElement = document.getElementById(`count-${templateId}`);
+            if (countElement) {
+                const count = this.countCardInDeck(templateId);
+                countElement.textContent = count;
                 
-                if (handIndex !== -1) {
-                    playCard('playerB', handIndex);
-                    cardPlayed = true;
-                    
-                    // Give the player a chance to see what happened before AI's next action
-                    setTimeout(aiTakeAction, 1000);
-                    return;
+                // Update button status
+                const cardElement = countElement.closest('.library-card');
+                const addButton = cardElement.querySelector('.add-card-btn');
+                
+                if (this.playerDeck.length >= this.maxDeckSize) {
+                    // Deck is full
+                    addButton.disabled = true;
+                    addButton.textContent = 'Deck Full';
+                } else if (count >= this.maxCopiesPerCard) {
+                    // Max copies reached
+                    addButton.disabled = true;
+                    addButton.textContent = 'Max Copies';
+                } else {
+                    // Can add more
+                    addButton.disabled = false;
+                    addButton.textContent = 'Add to Deck';
                 }
             }
-            
-            // If no creatures to play, consider spells
-            if (!cardPlayed) {
-                const playableSpells = gameState.players.playerB.hand.filter(card => 
-                    card.type === CARD_TYPES.SPELL && canPlayCard('playerB', card)
-                );
-                
-                if (playableSpells.length > 0) {
-                    // Sort by cost (highest first, for more impactful spells)
-                    playableSpells.sort((a, b) => b.cost - a.cost);
-                    const cardToPlay = playableSpells[0];
-                    const handIndex = gameState.players.playerB.hand.findIndex(card => card.id === cardToPlay.id);
-                    
-                    if (handIndex !== -1) {
-                        playCard('playerB', handIndex);
-                        cardPlayed = true;
-                        
-                        // Give the player a chance to see what happened before AI's next action
-                        setTimeout(aiTakeAction, 1000);
-                        return;
-                    }
-                }
+        });
+    },
+    
+    // Add CSS styles for deck builder
+    addStyles: function() {
+        const styleElement = document.createElement('style');
+        styleElement.textContent = `
+            .toggle-deck-builder {
+                position: absolute;
+                top: 10px;
+                right: 10px;
+                z-index: 10;
+                padding: 8px 16px;
+                background-color: #4a90e2;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
             }
             
-            // If no cards played, move to attack phase
-            if (!cardPlayed) {
-                gameState.currentPhase = GAME_PHASES.ATTACK;
-                logGameEvent("AI enters attack phase");
-                updateUI();
-                setTimeout(aiTakeAction, 1000);
-            }
-            break;
-            
-        case GAME_PHASES.ATTACK:
-            // Try to attack with creatures
-            let attackMade = false;
-            
-            // Get all attackable creatures (highest CP first)
-            const attackers = gameState.players.playerB.field
-                .map((card, index) => ({ card, index }))
-                .filter(item => 
-                    item.card.type === CARD_TYPES.CREATURE && 
-                    item.card.canAttack && 
-                    !item.card.hasAttacked
-                )
-                .sort((a, b) => b.card.cp - a.card.cp);
-            
-            if (attackers.length > 0) {
-                // Attack with strongest creature first
-                const attacker = attackers[0];
-                attackWithCreature('playerB', attacker.index);
-                attackMade = true;
-                
-                // Check if there are more creatures to attack with
-                const remainingAttackers = gameState.players.playerB.field
-                    .filter(card => 
-                        card.type === CARD_TYPES.CREATURE && 
-                        card.canAttack && 
-                        !card.hasAttacked
-                    );
-                
-                if (remainingAttackers.length > 0) {
-                    // Continue attack phase
-                    setTimeout(aiTakeAction, 1500);
-                    return;
-                }
+            .deck-builder-container {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(255, 255, 255, 0.95);
+                z-index: 1000;
+                display: flex;
+                flex-direction: column;
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.3s ease;
             }
             
-            // If no attacks made or no more attackers, move to end phase
-            if (!attackMade || attackers.length === 0) {
-                gameState.currentPhase = GAME_PHASES.END;
-                logGameEvent("AI enters end phase");
-                updateUI();
-                setTimeout(aiTakeAction, 1000);
+            .deck-builder-container.visible {
+                opacity: 1;
+                pointer-events: auto;
             }
-            break;
             
-        case GAME_PHASES.END:
-            // End turn
-            endTurn();
-            break;
+            .deck-builder-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 10px 20px;
+                background-color: #333;
+                color: white;
+            }
+            
+            .deck-builder-header h2 {
+                margin: 0;
+            }
+            
+            .deck-builder-stats {
+                padding: 5px 10px;
+                border-radius: 4px;
+                font-weight: bold;
+            }
+            
+            .deck-builder-stats.valid {
+                background-color: #4caf50;
+            }
+            
+            .deck-builder-stats.invalid {
+                background-color: #f44336;
+            }
+            
+            #closeDeckBuilder {
+                background: none;
+                border: none;
+                color: white;
+                font-size: 24px;
+                cursor: pointer;
+            }
+            
+            .deck-builder-content {
+                display: flex;
+                flex: 1;
+                overflow: hidden;
+            }
+            
+            .card-library, .current-deck {
+                flex: 1;
+                padding: 20px;
+                overflow-y: auto;
+                max-height: calc(100vh - 60px);
+            }
+            
+            .card-library {
+                border-right: 1px solid #ddd;
+            }
+            
+            .card-grid {
+                display: flex;
+                flex-direction: column;
+                gap: 20px;
+            }
+            
+            .card-category-header {
+                font-size: 18px;
+                font-weight: bold;
+                margin: 10px 0;
+                padding-bottom: 5px;
+                border-bottom: 2px solid #333;
+            }
+            
+            .category-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+                gap: 15px;
+                margin-bottom: 20px;
+            }
+            
+            .library-card {
+                border: 1px solid #ddd;
+                border-radius: 8px;
+                padding: 10px;
+                background-color: #f9f9f9;
+                position: relative;
+            }
+            
+            .card-preview {
+                height: 100px;
+                background-size: cover;
+                background-position: center;
+                margin-bottom: 10px;
+                border-radius: 4px;
+            }
+            
+            .card-info {
+                font-size: 14px;
+            }
+            
+            .card-name {
+                font-weight: bold;
+                margin-bottom: 5px;
+            }
+            
+            .card-type, .card-cost, .card-cp {
+                font-size: 12px;
+                color: #666;
+                margin-bottom: 3px;
+            }
+            
+            .card-ability {
+                font-style: italic;
+                margin: 5px 0;
+            }
+            
+            .card-effect {
+                font-size: 12px;
+                margin-top: 5px;
+            }
+            
+            .card-count {
+                position: absolute;
+                top: 5px;
+                right: 5px;
+                background-color: #333;
+                color: white;
+                border-radius: 50%;
+                width: 24px;
+                height: 24px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 12px;
+            }
+            
+            .add-card-btn {
+                margin-top: 10px;
+                padding: 5px 10px;
+                background-color: #4caf50;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                width: 100%;
+            }
+            
+            .add-card-btn:disabled {
+                background-color: #ccc;
+                cursor: not-allowed;
+            }
+            
+            .deck-actions {
+                display: flex;
+                gap: 10px;
+                margin-bottom: 15px;
+            }
+            
+            .deck-actions button {
+                padding: 8px 16px;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+            }
+            
+            #saveDeckBtn {
+                background-color: #4a90e2;
+                color: white;
+            }
+            
+            #resetDeckBtn {
+                background-color: #f44336;
+                color: white;
+            }
+            
+            .card-list {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
+            
+            .deck-card {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 8px;
+                background-color: #f5f5f5;
+                border-radius: 4px;
+                border-left: 4px solid #4a90e2;
+            }
+            
+            .deck-card-info {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+            
+            .deck-card-count {
+                font-weight: bold;
+                color: #4a90e2;
+            }
+            
+            .deck-card-type {
+                font-size: 12px;
+                color: #666;
+                margin-left: 8px;
+            }
+            
+            .remove-card-btn {
+                background-color: #f44336;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                width: 24px;
+                height: 24px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+        `;
+        document.head.appendChild(styleElement);
     }
-}
-
-// End the current turn
-function endTurn() {
-    logGameEvent(`${gameState.players[gameState.currentPlayer].name}'s turn ends.`);
-    
-    // Switch current player
-    gameState.currentPlayer = gameState.currentPlayer === 'playerA' ? 'playerB' : 'playerA';
-    
-    // If starting a new turn, increment turn counter
-    if (gameState.currentPlayer === 'playerA') {
-        gameState.turn++;
-    }
-    
-    // Reset to Draw phase
-    gameState.currentPhase = GAME_PHASES.DRAW;
-    
-    logGameEvent(`${gameState.players[gameState.currentPlayer].name}'s turn begins.`);
-    
-    updateUI();
-}
-
-// Add phase control buttons to UI since they don't exist in the HTML
-function createPhaseControls() {
-    const controlsDiv = document.createElement('div');
-    controlsDiv.className = 'phase-controls';
-    controlsDiv.style.margin = '10px 0';
-    controlsDiv.style.textAlign = 'center';
-    
-    const drawButton = document.createElement('button');
-    drawButton.textContent = 'Draw Phase';
-    drawButton.id = 'draw-phase-btn';
-    drawButton.className = 'phase-btn';
-    drawButton.style.margin = '0 5px';
-    
-    const playButton = document.createElement('button');
-    playButton.textContent = 'Play Phase';
-    playButton.id = 'play-phase-btn';
-    playButton.className = 'phase-btn';
-    playButton.style.margin = '0 5px';
-    
-    const attackButton = document.createElement('button');
-    attackButton.textContent = 'Attack Phase';
-    attackButton.id = 'attack-phase-btn';
-    attackButton.className = 'phase-btn';
-    attackButton.style.margin = '0 5px';
-    
-    const endButton = document.createElement('button');
-    endButton.textContent = 'End Turn';
-    endButton.id = 'end-phase-btn';
-    endButton.className = 'phase-btn';
-    endButton.style.margin = '0 5px';
-    
-    controlsDiv.appendChild(drawButton);
-    controlsDiv.appendChild(playButton);
-    controlsDiv.appendChild(attackButton);
-    controlsDiv.appendChild(endButton);
-    
-    // Find playerA area to insert controls
-    const playerArea = document.getElementById('playerA');
-    playerArea.insertBefore(controlsDiv, playerArea.firstChild);
-    
-    // Add event listeners
-    drawButton.addEventListener('click', () => {
-        if (gameState.currentPlayer === 'playerA') {
-            gameState.currentPhase = GAME_PHASES.DRAW;
-            drawCard('playerA');
-            
-            // Reset all creatures' attack eligibility
-            gameState.players.playerA.field.forEach(card => {
-                card.canAttack = true;
-                card.hasAttacked = false;
-            });
-            
-            updateUI();
-        }
-    });
-    
-    playButton.addEventListener('click', () => {
-        if (gameState.currentPlayer === 'playerA') {
-            gameState.currentPhase = GAME_PHASES.PLAY;
-            updateUI();
-        }
-    });
-    
-    attackButton.addEventListener('click', () => {
-        if (gameState.currentPlayer === 'playerA') {
-            gameState.currentPhase = GAME_PHASES.ATTACK;
-            updateUI();
-        }
-    });
-    
-    endButton.addEventListener('click', () => {
-        if (gameState.currentPlayer === 'playerA') {
-            endTurn();
-        }
-    });
-}
-
-// Add CSS styles for cards and gameplay elements
-function addGameStyles() {
-    const style = document.createElement('style');
-    style.textContent = `
-        .card .name {
-            position: absolute;
-            top: 0;
-            width: 100%;
-            padding: 2px;
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            font-size: 12px;
-            text-align: center;
-            overflow: hidden;
-            white-space: nowrap;
-            text-overflow: ellipsis;
-        }
-        
-        .placeholder-text {
-            color: #999;
-            font-style: italic;
-        }
-        
-        .card.playable {
-            border: 2px solid green;
-            cursor: pointer;
-        }
-        
-        .card.attackable {
-            border: 2px solid red;
-            cursor: pointer;
-        }
-        
-        .passive {
-            position: absolute;
-            top: 50%;
-            width: 100%;
-            text-align: center;
-            font-weight: bold;
-            text-shadow: 1px 1px 2px black;
-        }
-    `;
-    document.head.appendChild(style);
-}
-
-// Initialize the game on page load
-document.addEventListener('DOMContentLoaded', () => {
-    createPhaseControls();
-    addGameStyles();
-    initializeGame();
-});
-
-// Export game functions for testing (only in Node.js environment)
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = {
-        initializeGame,
-        updateUI,
-        drawCard,
-        playCard,
-        attackWithCreature,
-        endTurn,
-        aiTakeAction,
-        gameState,
-        GAME_PHASES,
-        CARD_TYPES
-    };
-}
+};
