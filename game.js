@@ -199,6 +199,13 @@ function createCardFromTemplate(templateId, isApprentice = false) {
     card.hasAttackedBefore = false;
     card.isEvolved = false;
     card.appliedPassives = [];  // To track which passives have been applied
+    card.position = -1;  // Position on the field (-1 means not on field)
+    
+    // Determine attack range based on card type
+    if (card.type === CARD_TYPES.CREATURE) {
+        // Mages have range 2, all other creatures have range 1
+        card.attackRange = card.name.toLowerCase().includes('mage') ? 2 : 1;
+    }
 
     return card;
 }
@@ -537,9 +544,10 @@ function renderPlayerField(playerKey) {
     const backRowIndices = [];
     
     player.field.forEach((card, index) => {
-        if (index < 3) {
+        // Use position property to determine row
+        if (card.position < 3) {
             frontRowIndices.push(index);
-        } else if (index < 6) {
+        } else if (card.position < 6) {
             backRowIndices.push(index);
         }
     });
@@ -549,9 +557,11 @@ function renderPlayerField(playerKey) {
         const slot = document.createElement('div');
         slot.className = 'card-slot';
         
+        // Check if there's a card for this position
+        const cardIndex = player.field.findIndex(card => card.position === i);
+        
         // If we have a card for this slot
-        if (i < frontRowIndices.length) {
-            const cardIndex = frontRowIndices[i];
+        if (cardIndex !== -1) {
             const card = player.field[cardIndex];
             const cardElement = createCardElement(card);
             
@@ -582,6 +592,22 @@ function renderPlayerField(playerKey) {
                 evolvedElement.style.textShadow = '1px 1px 2px black';
                 evolvedElement.style.fontWeight = 'bold';
                 cardElement.appendChild(evolvedElement);
+            }
+            
+            // Add range indicator
+            if (card.attackRange) {
+                const rangeElement = document.createElement('div');
+                rangeElement.className = 'range-indicator';
+                rangeElement.textContent = `Range: ${card.attackRange}`;
+                rangeElement.style.position = 'absolute';
+                rangeElement.style.bottom = '25px';
+                rangeElement.style.right = '5px';
+                rangeElement.style.fontSize = '10px';
+                rangeElement.style.backgroundColor = card.attackRange > 1 ? 'rgba(0, 128, 255, 0.8)' : 'rgba(255, 99, 71, 0.8)';
+                rangeElement.style.color = 'white';
+                rangeElement.style.padding = '2px 4px';
+                rangeElement.style.borderRadius = '3px';
+                cardElement.appendChild(rangeElement);
             }
             
             // Add attack functionality only for current player's cards that can attack
@@ -606,10 +632,13 @@ function renderPlayerField(playerKey) {
     for (let i = 0; i < 3; i++) {
         const slot = document.createElement('div');
         slot.className = 'card-slot';
+        const position = i + 3; // Back row positions are 3, 4, 5
+        
+        // Check if there's a card for this position
+        const cardIndex = player.field.findIndex(card => card.position === position);
         
         // If we have a card for this slot
-        if (i < backRowIndices.length) {
-            const cardIndex = backRowIndices[i];
+        if (cardIndex !== -1) {
             const card = player.field[cardIndex];
             const cardElement = createCardElement(card);
             
@@ -640,6 +669,22 @@ function renderPlayerField(playerKey) {
                 evolvedElement.style.textShadow = '1px 1px 2px black';
                 evolvedElement.style.fontWeight = 'bold';
                 cardElement.appendChild(evolvedElement);
+            }
+            
+            // Add range indicator
+            if (card.attackRange) {
+                const rangeElement = document.createElement('div');
+                rangeElement.className = 'range-indicator';
+                rangeElement.textContent = `Range: ${card.attackRange}`;
+                rangeElement.style.position = 'absolute';
+                rangeElement.style.bottom = '25px';
+                rangeElement.style.right = '5px';
+                rangeElement.style.fontSize = '10px';
+                rangeElement.style.backgroundColor = card.attackRange > 1 ? 'rgba(0, 128, 255, 0.8)' : 'rgba(255, 99, 71, 0.8)';
+                rangeElement.style.color = 'white';
+                rangeElement.style.padding = '2px 4px';
+                rangeElement.style.borderRadius = '3px';
+                cardElement.appendChild(rangeElement);
             }
             
             // Add attack functionality only for current player's cards that can attack
@@ -884,11 +929,40 @@ function evolveApprentice(playerKey, handIndex) {
         classCard.isEvolved = true;
         classCard.evolvedFrom = apprentice.name;
 
-        // Move class card to field
-        player.field.push(classCard);
-
-        // Remove class card from hand
-        player.hand.splice(handIndex, 1);
+        // When evolving, we'll prompt for position selection for human player
+        if (playerKey === 'playerA') {
+            showPositionSelectionUI(playerKey, handIndex, true, apprentice);
+            
+            // Exit evolution mode
+            gameState.evolution.isEvolutionMode = false;
+            gameState.evolution.sourceCard = null;
+            gameState.evolution.targetZone = null;
+            
+            // Hide cancel evolution button
+            if (domElements.cancelEvolutionBtn) {
+                domElements.cancelEvolutionBtn.style.display = 'none';
+            }
+            
+            return;
+        } else {
+            // For AI, choose a position automatically (first available position)
+            let position = -1;
+            for (let i = 0; i < 6; i++) {
+                if (!player.field.some(card => card.position === i)) {
+                    position = i;
+                    break;
+                }
+            }
+            
+            // Set the position
+            classCard.position = position;
+            
+            // Move class card to field
+            player.field.push(classCard);
+            
+            // Remove class card from hand
+            player.hand.splice(handIndex, 1);
+        }
 
         // Remove apprentice from apprentice zone
         const apprenticeIndex = player.apprenticeZone.findIndex(card => card.id === apprentice.id);
@@ -1010,6 +1084,24 @@ function createCardElement(card) {
         evolvedElement.style.fontWeight = 'bold';
         cardElement.appendChild(evolvedElement);
     }
+    
+    // Add position info for cards on the field
+    if (card.position !== undefined && card.position >= 0) {
+        const positionElement = document.createElement('div');
+        positionElement.className = 'position-indicator';
+        const rowName = card.position < 3 ? 'Front' : 'Back';
+        const posInRow = card.position % 3 + 1;
+        positionElement.textContent = `${rowName} ${posInRow}`;
+        positionElement.style.position = 'absolute';
+        positionElement.style.top = '5px';
+        positionElement.style.right = '5px';
+        positionElement.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+        positionElement.style.color = 'white';
+        positionElement.style.padding = '2px 5px';
+        positionElement.style.fontSize = '10px';
+        positionElement.style.borderRadius = '3px';
+        cardElement.appendChild(positionElement);
+    }
 
     return cardElement;
 }
@@ -1021,8 +1113,31 @@ function canPlayCard(playerKey, card) {
     return player.coins >= card.cost;
 }
 
-// Play a card
-function playCard(playerKey, handIndex) {
+// Check if a creature can attack a specific target based on their positions
+function canAttackTarget(attacker, defender) {
+    // If attacker or defender doesn't have a position, they can't engage in positional combat
+    if (attacker.position === -1 || defender.position === -1) return false;
+    
+    // Calculate position difference
+    const attackerPosition = attacker.position;
+    const defenderPosition = defender.position;
+    
+    // Convert positions to 2D coordinates (row, column)
+    const attackerRow = Math.floor(attackerPosition / 3);  // 0 for front, 1 for back
+    const attackerCol = attackerPosition % 3;              // 0, 1, or 2 for position in row
+    
+    const defenderRow = Math.floor(defenderPosition / 3);  // 0 for front, 1 for back
+    const defenderCol = defenderPosition % 3;              // 0, 1, or 2 for position in row
+    
+    // Calculate the Manhattan distance between the two positions
+    const distance = Math.abs(attackerRow - defenderRow) + Math.abs(attackerCol - defenderCol);
+    
+    // Check if the distance is within the attacker's range
+    return distance <= attacker.attackRange;
+}
+
+// Play a card with position selection
+function playCard(playerKey, handIndex, position = null, isEvolution = false, apprentice = null) {
     const player = gameState.players[playerKey];
     if (playerKey !== gameState.currentPlayer || gameState.currentPhase !== GAME_PHASES.PLAY) {
         logGameEvent("Can't play card - not your turn or wrong phase!");
@@ -1033,7 +1148,7 @@ function playCard(playerKey, handIndex) {
     const cost = card.cost;
 
     // Check if player has enough coins
-    if (player.coins < cost) {
+    if (player.coins < cost && !isEvolution) {
         logGameEvent(`Not enough coins to play ${card.name} (cost: ${cost}, available: ${player.coins})`);
         return;
     }
@@ -1044,15 +1159,76 @@ function playCard(playerKey, handIndex) {
         return;
     }
 
+    // For creature cards, if no position is provided and player is human, show position selection UI
+    if (card.type === CARD_TYPES.CREATURE && position === null && playerKey === 'playerA') {
+        showPositionSelectionUI(playerKey, handIndex, isEvolution, apprentice);
+        return;
+    }
+
+    // For AI or if position is already selected, proceed with playing the card
     // Deduct coins
-    player.coins -= cost;
-    logGameEvent(`${player.name} spent ${cost} coins to play ${card.name}`);
+    if (!isEvolution) {
+        player.coins -= cost;
+        logGameEvent(`${player.name} spent ${cost} coins to play ${card.name}`);
+    } else {
+        // For evolution, cost was already deducted
+        // If this is an evolution, remove the apprentice from its zone and add to trash
+        if (apprentice) {
+            const apprenticeIndex = player.apprenticeZone.findIndex(c => c.id === apprentice.id);
+            if (apprenticeIndex !== -1) {
+                player.apprenticeZone.splice(apprenticeIndex, 1);
+                player.trashPile.push(apprentice);
+            }
+        }
+    }
 
     // Handle card type specific actions
     if (card.type === CARD_TYPES.CREATURE) {
+        // If a specific position was provided, use it
+        if (position !== null && position >= 0 && position < 6) {
+            // Check if the position is already occupied
+            const existingCardIndex = player.field.findIndex(c => c.position === position);
+            if (existingCardIndex !== -1) {
+                // Move existing card to trash pile
+                const existingCard = player.field[existingCardIndex];
+                logGameEvent(`${existingCard.name} was removed from the field to make room for ${card.name}`);
+                player.trashPile.push(existingCard);
+                player.field.splice(existingCardIndex, 1);
+            }
+            
+            // Set the card's position
+            card.position = position;
+        } else {
+            // For AI or fallback, find the first available position
+            let availablePosition = -1;
+            for (let i = 0; i < 6; i++) {
+                if (!player.field.some(c => c.position === i)) {
+                    availablePosition = i;
+                    break;
+                }
+            }
+            
+            // If all positions are filled but we have less than 6 creatures (shouldn't happen, but just in case)
+            if (availablePosition === -1 && player.field.length < 6) {
+                // Remove the oldest card (first in the array)
+                const oldestCard = player.field[0];
+                logGameEvent(`${oldestCard.name} was removed from the field to make room for ${card.name}`);
+                player.trashPile.push(oldestCard);
+                player.field.shift();
+                availablePosition = 0;
+            }
+            
+            card.position = availablePosition;
+        }
+        
+        // Add card to the field
         player.field.push(card);
         player.hand.splice(handIndex, 1);
-        logGameEvent(`${player.name} played ${card.name} (${card.cp} CP)`);
+        
+        // Log the specific position
+        const rowName = card.position < 3 ? 'front' : 'back';
+        const posInRow = card.position % 3;
+        logGameEvent(`${player.name} played ${card.name} (${card.cp} CP) in the ${rowName} row, position ${posInRow + 1}`);
 
         // Implement card effects
         if (card.name === 'Mage Apprentice') {
@@ -1064,35 +1240,34 @@ function playCard(playerKey, handIndex) {
         logGameEvent(`${player.name} played ${card.name}. Effect: ${card.effect}`);
 
         if (card.name === 'Fireball') {
+            // For spells like Fireball, we would need to implement positional targeting as well
+            // This would be an enhancement for later
             const opponent = playerKey === 'playerA' ? 'playerB' : 'playerA';
             const opponentField = gameState.players[opponent].field;
 
             if (opponentField.length > 0) {
-                // For AI, choose strongest enemy creature
-                // For player, prompt to choose target
-                let targetIndex;
-
+                // For human player, show targeting UI
                 if (playerKey === 'playerA') {
-                    // For simplicity, target first creature (in full game, add targeting UI)
-                    targetIndex = 0;
-                    // Ideally, add a function here to let player select a target
+                    showSpellTargetSelectionUI(playerKey, handIndex, card, opponent);
+                    return; // Early return to wait for target selection
                 } else {
+                    // For AI, use the original targeting logic
                     // AI targets strongest enemy
-                    targetIndex = opponentField.reduce((maxIndex, card, currentIndex, array) =>
+                    const targetIndex = opponentField.reduce((maxIndex, card, currentIndex, array) =>
                         card.cp > array[maxIndex].cp ? currentIndex : maxIndex, 0);
-                }
 
-                const targetCard = opponentField[targetIndex];
-                logGameEvent(`${card.name} deals 3000 damage to ${targetCard.name}!`);
+                    const targetCard = opponentField[targetIndex];
+                    logGameEvent(`${card.name} deals 3000 damage to ${targetCard.name}!`);
 
-                // Check if creature is destroyed
-                if (targetCard.cp <= 3000) {
-                    logGameEvent(`${targetCard.name} was destroyed!`);
-                    gameState.players[opponent].trashPile.push(targetCard);
-                    opponentField.splice(targetIndex, 1);
-                } else {
-                    logGameEvent(`${targetCard.name} survived with ${targetCard.cp - 3000} CP remaining!`);
-                    // In a full implementation, reduce CP temporarily or permanently
+                    // Check if creature is destroyed
+                    if (targetCard.cp <= 3000) {
+                        logGameEvent(`${targetCard.name} was destroyed!`);
+                        gameState.players[opponent].trashPile.push(targetCard);
+                        opponentField.splice(targetIndex, 1);
+                    } else {
+                        logGameEvent(`${targetCard.name} survived with ${targetCard.cp - 3000} CP remaining!`);
+                        // In a full implementation, reduce CP temporarily or permanently
+                    }
                 }
             } else {
                 logGameEvent("No target available for Fireball!");
@@ -1101,13 +1276,18 @@ function playCard(playerKey, handIndex) {
             const friendlyField = player.field;
 
             if (friendlyField.length > 0) {
-                // For simplicity, heal first creature
-                // In a full game, add targeting UI
-                const targetIndex = 0;
-                const targetCard = friendlyField[targetIndex];
+                // For human player, show targeting UI
+                if (playerKey === 'playerA') {
+                    showSpellTargetSelectionUI(playerKey, handIndex, card, playerKey);
+                    return; // Early return to wait for target selection
+                } else {
+                    // For AI, use the original targeting logic (first creature)
+                    const targetIndex = 0;
+                    const targetCard = friendlyField[targetIndex];
 
-                logGameEvent(`${card.name} restores 2000 CP to ${targetCard.name}!`);
-                // In a full implementation, increase CP temporarily or permanently
+                    logGameEvent(`${card.name} restores 2000 CP to ${targetCard.name}!`);
+                    // In a full implementation, increase CP temporarily or permanently
+                }
             } else {
                 logGameEvent("No target available for Healing Wave!");
             }
@@ -1121,7 +1301,833 @@ function playCard(playerKey, handIndex) {
     updateUI();
 }
 
-// Show a blocking UI prompt for the player instead of using confirm()
+// Show UI for selecting a target for spell effects
+function showSpellTargetSelectionUI(playerKey, handIndex, spell, targetPlayerKey) {
+    const player = gameState.players[playerKey];
+    const targetPlayer = gameState.players[targetPlayerKey];
+    
+    // Create a modal overlay
+    const modalOverlay = document.createElement('div');
+    modalOverlay.className = 'modal-overlay';
+    modalOverlay.style.position = 'fixed';
+    modalOverlay.style.top = '0';
+    modalOverlay.style.left = '0';
+    modalOverlay.style.width = '100%';
+    modalOverlay.style.height = '100%';
+    modalOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+    modalOverlay.style.display = 'flex';
+    modalOverlay.style.justifyContent = 'center';
+    modalOverlay.style.alignItems = 'center';
+    modalOverlay.style.zIndex = '1000';
+    
+    // Create the spell target selection container
+    const selectionContainer = document.createElement('div');
+    selectionContainer.className = 'spell-target-selection';
+    selectionContainer.style.backgroundColor = 'white';
+    selectionContainer.style.padding = '20px';
+    selectionContainer.style.borderRadius = '8px';
+    selectionContainer.style.maxWidth = '600px';
+    selectionContainer.style.textAlign = 'center';
+    
+    // Add spell info and prompt
+    const spellInfo = document.createElement('div');
+    spellInfo.innerHTML = `<h3>Select a target for ${spell.name}</h3>`;
+    spellInfo.innerHTML += `<p>${spell.effect}</p>`;
+    selectionContainer.appendChild(spellInfo);
+    
+    // Create target options
+    const targetsGrid = document.createElement('div');
+    targetsGrid.style.display = 'flex';
+    targetsGrid.style.flexWrap = 'wrap';
+    targetsGrid.style.justifyContent = 'center';
+    targetsGrid.style.gap = '10px';
+    targetsGrid.style.margin = '20px 0';
+    
+    // Add target cards for selection
+    targetPlayer.field.forEach((target, index) => {
+        const targetCard = document.createElement('div');
+        targetCard.className = 'target-card';
+        targetCard.style.width = '120px';
+        targetCard.style.height = '150px';
+        targetCard.style.border = '2px solid #ccc';
+        targetCard.style.borderRadius = '8px';
+        targetCard.style.cursor = 'pointer';
+        targetCard.style.position = 'relative';
+        targetCard.style.overflow = 'hidden';
+        
+        // Card image
+        const cardImage = document.createElement('div');
+        cardImage.style.height = '100px';
+        cardImage.style.backgroundSize = 'contain';
+        cardImage.style.backgroundPosition = 'center';
+        cardImage.style.backgroundRepeat = 'no-repeat';
+        
+        if (target.image) {
+            cardImage.style.backgroundImage = `url(${target.image})`;
+        } else {
+            cardImage.style.background = 'linear-gradient(135deg, #444, #666)';
+        }
+        
+        targetCard.appendChild(cardImage);
+        
+        // Card info
+        const cardInfo = document.createElement('div');
+        cardInfo.style.padding = '5px';
+        cardInfo.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+        cardInfo.style.color = 'white';
+        cardInfo.style.fontSize = '12px';
+        cardInfo.innerHTML = `<div>${target.name}</div>`;
+        
+        if (target.cp) {
+            cardInfo.innerHTML += `<div>CP: ${target.cp}</div>`;
+        }
+        
+        targetCard.appendChild(cardInfo);
+        
+        // Position indicator
+        if (target.position !== undefined && target.position >= 0) {
+            const positionLabel = document.createElement('div');
+            const rowName = target.position < 3 ? 'Front' : 'Back';
+            const posInRow = target.position % 3 + 1;
+            positionLabel.textContent = `${rowName} ${posInRow}`;
+            positionLabel.style.position = 'absolute';
+            positionLabel.style.top = '5px';
+            positionLabel.style.right = '5px';
+            positionLabel.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+            positionLabel.style.color = 'white';
+            positionLabel.style.padding = '2px 5px';
+            positionLabel.style.fontSize = '10px';
+            positionLabel.style.borderRadius = '3px';
+            targetCard.appendChild(positionLabel);
+        }
+        
+        // When this target is selected, apply the spell effect
+        targetCard.onclick = () => {
+            document.body.removeChild(modalOverlay);
+            
+            // Apply spell effect based on the spell type
+            if (spell.name === 'Fireball') {
+                logGameEvent(`${spell.name} deals 3000 damage to ${target.name}!`);
+                
+                // Check if creature is destroyed
+                if (target.cp <= 3000) {
+                    logGameEvent(`${target.name} was destroyed!`);
+                    targetPlayer.trashPile.push(target);
+                    const targetIndex = targetPlayer.field.findIndex(card => card.id === target.id);
+                    if (targetIndex !== -1) {
+                        targetPlayer.field.splice(targetIndex, 1);
+                    }
+                } else {
+                    logGameEvent(`${target.name} survived with ${target.cp - 3000} CP remaining!`);
+                    // In a full implementation, reduce CP temporarily or permanently
+                }
+            } else if (spell.name === 'Healing Wave') {
+                logGameEvent(`${spell.name} restores 2000 CP to ${target.name}!`);
+                // In a full implementation, increase CP temporarily or permanently
+            }
+            
+            // Move spell to trash pile after use
+            player.trashPile.push(spell);
+            player.hand.splice(handIndex, 1);
+            
+            updateUI();
+        };
+        
+        // Highlight on hover
+        targetCard.onmouseover = () => {
+            targetCard.style.borderColor = spell.name === 'Fireball' ? '#f44336' : '#4caf50';
+            targetCard.style.boxShadow = spell.name === 'Fireball' ? 
+                '0 0 10px rgba(244, 67, 54, 0.5)' : 
+                '0 0 10px rgba(76, 175, 80, 0.5)';
+        };
+        
+        targetCard.onmouseout = () => {
+            targetCard.style.borderColor = '#ccc';
+            targetCard.style.boxShadow = '';
+        };
+        
+        targetsGrid.appendChild(targetCard);
+    });
+    
+    selectionContainer.appendChild(targetsGrid);
+    
+    // Add cancel button
+    const cancelButton = document.createElement('button');
+    cancelButton.textContent = 'Cancel';
+    cancelButton.className = 'phase-btn';
+    cancelButton.style.backgroundColor = '#9e9e9e';
+    cancelButton.style.padding = '10px 20px';
+    cancelButton.onclick = () => {
+        document.body.removeChild(modalOverlay);
+    };
+    selectionContainer.appendChild(cancelButton);
+    
+    // Display error message if no targets available
+    if (targetPlayer.field.length === 0) {
+        const noTargetsMsg = document.createElement('div');
+        noTargetsMsg.textContent = 'No valid targets available!';
+        noTargetsMsg.style.color = '#f44336';
+        noTargetsMsg.style.margin = '20px 0';
+        noTargetsMsg.style.fontWeight = 'bold';
+        selectionContainer.appendChild(noTargetsMsg);
+    }
+    
+    // Append to modal
+    modalOverlay.appendChild(selectionContainer);
+    
+    // Add to document
+    document.body.appendChild(modalOverlay);
+}
+
+// Show UI for selecting card position when playing a creature
+function showPositionSelectionUI(playerKey, handIndex, isEvolution = false, apprentice = null) {
+    const player = gameState.players[playerKey];
+    const card = player.hand[handIndex];
+    
+    // Create a modal overlay
+    const modalOverlay = document.createElement('div');
+    modalOverlay.className = 'modal-overlay';
+    modalOverlay.style.position = 'fixed';
+    modalOverlay.style.top = '0';
+    modalOverlay.style.left = '0';
+    modalOverlay.style.width = '100%';
+    modalOverlay.style.height = '100%';
+    modalOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+    modalOverlay.style.display = 'flex';
+    modalOverlay.style.justifyContent = 'center';
+    modalOverlay.style.alignItems = 'center';
+    modalOverlay.style.zIndex = '1000';
+    
+    // Create the position selection container
+    const selectionContainer = document.createElement('div');
+    selectionContainer.className = 'position-selection';
+    selectionContainer.style.backgroundColor = 'white';
+    selectionContainer.style.padding = '20px';
+    selectionContainer.style.borderRadius = '8px';
+    selectionContainer.style.maxWidth = '600px';
+    selectionContainer.style.textAlign = 'center';
+    
+    // Add selection prompt
+    const promptText = document.createElement('h3');
+    promptText.textContent = isEvolution ?
+        `Select a position for evolved ${card.name}` :
+        `Select a position for ${card.name}`;
+    selectionContainer.appendChild(promptText);
+    
+    // Create battlefield visualization for selection
+    const battlefieldGrid = document.createElement('div');
+    battlefieldGrid.className = 'position-battlefield-grid';
+    battlefieldGrid.style.display = 'flex';
+    battlefieldGrid.style.flexDirection = 'column';
+    battlefieldGrid.style.gap = '15px';
+    battlefieldGrid.style.margin = '20px 0';
+    
+    // Create front row for selection
+    const frontRow = document.createElement('div');
+    frontRow.className = 'position-row';
+    frontRow.style.display = 'flex';
+    frontRow.style.justifyContent = 'center';
+    frontRow.style.gap = '10px';
+    
+    // Create back row for selection
+    const backRow = document.createElement('div');
+    backRow.className = 'position-row';
+    backRow.style.display = 'flex';
+    backRow.style.justifyContent = 'center';
+    backRow.style.gap = '10px';
+    
+    // Add labels
+    const frontLabel = document.createElement('div');
+    frontLabel.textContent = 'Front';
+    frontLabel.style.width = '60px';
+    frontLabel.style.display = 'flex';
+    frontLabel.style.alignItems = 'center';
+    frontLabel.style.justifyContent = 'center';
+    frontLabel.style.fontWeight = 'bold';
+    frontLabel.style.backgroundColor = 'rgba(255, 0, 0, 0.1)';
+    frontLabel.style.color = '#d32f2f';
+    frontLabel.style.borderRadius = '4px';
+    frontLabel.style.borderLeft = '3px solid #d32f2f';
+    frontRow.appendChild(frontLabel);
+    
+    const backLabel = document.createElement('div');
+    backLabel.textContent = 'Back';
+    backLabel.style.width = '60px';
+    backLabel.style.display = 'flex';
+    backLabel.style.alignItems = 'center';
+    backLabel.style.justifyContent = 'center';
+    backLabel.style.fontWeight = 'bold';
+    backLabel.style.backgroundColor = 'rgba(0, 0, 255, 0.1)';
+    backLabel.style.color = '#1976d2';
+    backLabel.style.borderRadius = '4px';
+    backLabel.style.borderLeft = '3px solid #1976d2';
+    backRow.appendChild(backLabel);
+    
+    // Create slot containers
+    const frontSlots = document.createElement('div');
+    frontSlots.style.display = 'flex';
+    frontSlots.style.gap = '10px';
+    frontRow.appendChild(frontSlots);
+    
+    const backSlots = document.createElement('div');
+    backSlots.style.display = 'flex';
+    backSlots.style.gap = '10px';
+    backRow.appendChild(backSlots);
+    
+    // Create slots for each position
+    for (let i = 0; i < 6; i++) {
+        const isBackRow = i >= 3;
+        const position = i;
+        const positionInRow = i % 3;
+        
+        const slot = document.createElement('div');
+        slot.className = 'position-slot';
+        slot.style.width = '120px';
+        slot.style.height = '120px';
+        slot.style.border = '2px dashed #ccc';
+        slot.style.borderRadius = '8px';
+        slot.style.display = 'flex';
+        slot.style.justifyContent = 'center';
+        slot.style.alignItems = 'center';
+        slot.style.cursor = 'pointer';
+        slot.style.position = 'relative';
+        
+        // Check if there's a card in this position already
+        const existingCard = player.field.find(c => c.position === position);
+        if (existingCard) {
+            // Show the existing card
+            const miniCard = document.createElement('div');
+            miniCard.className = 'mini-card';
+            miniCard.style.width = '100px';
+            miniCard.style.height = '100px';
+            miniCard.style.borderRadius = '5px';
+            miniCard.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.2)';
+            miniCard.style.backgroundSize = 'contain';
+            miniCard.style.backgroundPosition = 'center';
+            miniCard.style.backgroundRepeat = 'no-repeat';
+            miniCard.style.backgroundColor = '#f5f5f5';
+            
+            if (existingCard.image) {
+                miniCard.style.backgroundImage = `url(${existingCard.image})`;
+            }
+            
+            const cardName = document.createElement('div');
+            cardName.textContent = existingCard.name;
+            cardName.style.position = 'absolute';
+            cardName.style.bottom = '5px';
+            cardName.style.width = '100%';
+            cardName.style.textAlign = 'center';
+            cardName.style.fontSize = '12px';
+            cardName.style.fontWeight = 'bold';
+            cardName.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+            cardName.style.color = 'white';
+            cardName.style.padding = '2px 0';
+            miniCard.appendChild(cardName);
+            
+            const replaceBadge = document.createElement('div');
+            replaceBadge.textContent = 'Replace';
+            replaceBadge.style.position = 'absolute';
+            replaceBadge.style.top = '5px';
+            replaceBadge.style.width = '100%';
+            replaceBadge.style.textAlign = 'center';
+            replaceBadge.style.fontSize = '12px';
+            replaceBadge.style.backgroundColor = 'rgba(255, 0, 0, 0.8)';
+            replaceBadge.style.color = 'white';
+            replaceBadge.style.padding = '2px 0';
+            miniCard.appendChild(replaceBadge);
+            
+            slot.appendChild(miniCard);
+        } else {
+            // Show empty slot
+            slot.textContent = 'Empty';
+            slot.style.color = '#aaa';
+            slot.style.fontStyle = 'italic';
+        }
+        
+        // When a slot is clicked, play the card at that position
+        slot.onclick = () => {
+            document.body.removeChild(modalOverlay);
+            if (isEvolution) {
+                // For evolution, we need to handle the apprentice and position
+                // First, move the card from hand to field with the selected position
+                card.position = position;
+                player.field.push(card);
+                player.hand.splice(handIndex, 1);
+                
+                // Then handle the apprentice
+                if (apprentice) {
+                    const apprenticeIndex = player.apprenticeZone.findIndex(c => c.id === apprentice.id);
+                    if (apprenticeIndex !== -1) {
+                        player.apprenticeZone.splice(apprenticeIndex, 1);
+                        player.trashPile.push(apprentice);
+                    }
+                }
+                
+                // Apply cost discount for evolution
+                const evolveCost = Math.max(0, card.cost - 1);
+                player.coins -= evolveCost;
+                
+                // Log the evolution
+                const rowName = position < 3 ? 'front' : 'back';
+                const posInRow = position % 3 + 1;
+                logGameEvent(`${apprentice.name} evolved into ${card.name} in the ${rowName} row, position ${posInRow}!`);
+                logGameEvent(`Evolution cost: ${evolveCost} coins (discounted)`);
+                
+                updateUI();
+            } else {
+                // For regular play, use the normal playCard function with position
+                playCard(playerKey, handIndex, position);
+            }
+        };
+        
+        // Add highlight on hover
+        slot.onmouseover = () => {
+            slot.style.backgroundColor = 'rgba(76, 175, 80, 0.1)';
+            slot.style.borderColor = '#4caf50';
+        };
+        
+        slot.onmouseout = () => {
+            slot.style.backgroundColor = '';
+            slot.style.borderColor = '#ccc';
+        };
+        
+        if (isBackRow) {
+            backSlots.appendChild(slot);
+        } else {
+            frontSlots.appendChild(slot);
+        }
+    }
+    
+    // Add battlefield to selection container
+    battlefieldGrid.appendChild(frontRow);
+    battlefieldGrid.appendChild(backRow);
+    selectionContainer.appendChild(battlefieldGrid);
+    
+    // Add card info
+    const cardInfo = document.createElement('div');
+    cardInfo.style.marginTop = '15px';
+    cardInfo.style.backgroundColor = '#f5f5f5';
+    cardInfo.style.padding = '10px';
+    cardInfo.style.borderRadius = '5px';
+    cardInfo.style.fontSize = '14px';
+    
+    // Add attack range info for creatures
+    if (card.type === CARD_TYPES.CREATURE) {
+        const isMage = card.name.toLowerCase().includes('mage');
+        const range = isMage ? 2 : 1;
+        card.attackRange = range; // Set the range
+        
+        cardInfo.innerHTML = `<strong>${card.name}</strong>: ${isMage ? 'Ranged' : 'Melee'} unit (Attack Range: ${range})`;
+        cardInfo.innerHTML += `<br>CP: ${card.cp}`;
+        
+        // Add range tip
+        if (isMage) {
+            cardInfo.innerHTML += `<br><span style="color:#1976d2;">Tip: Mages can attack targets up to 2 positions away.</span>`;
+        } else {
+            cardInfo.innerHTML += `<br><span style="color:#d32f2f;">Tip: Melee units can only attack adjacent positions.</span>`;
+        }
+    }
+    
+    selectionContainer.appendChild(cardInfo);
+    
+    // Add cancel button
+    const cancelButton = document.createElement('button');
+    cancelButton.textContent = 'Cancel';
+    cancelButton.className = 'phase-btn';
+    cancelButton.style.backgroundColor = '#f44336';
+    cancelButton.style.padding = '10px 20px';
+    cancelButton.style.marginTop = '15px';
+    cancelButton.onclick = () => {
+        document.body.removeChild(modalOverlay);
+        if (isEvolution) {
+            // If canceling an evolution, revert to evolution mode
+            gameState.evolution.isEvolutionMode = true;
+        }
+    };
+    selectionContainer.appendChild(cancelButton);
+    
+    // Append to modal
+    modalOverlay.appendChild(selectionContainer);
+    
+    // Add to document
+    document.body.appendChild(modalOverlay);
+}
+
+// Attack with a creature
+function attackWithCreature(playerKey, fieldIndex) {
+    const player = gameState.players[playerKey];
+    const opponent = playerKey === 'playerA' ? 'playerB' : 'playerA';
+
+    if (playerKey !== gameState.currentPlayer || gameState.currentPhase !== GAME_PHASES.ATTACK) {
+        logGameEvent("Can't attack - not your turn or wrong phase!");
+        return;
+    }
+
+    const attacker = player.field[fieldIndex];
+
+    // Check if card can attack
+    if (!attacker.canAttack || attacker.hasAttacked) {
+        logGameEvent(`${attacker.name} cannot attack right now!`);
+        return;
+    }
+
+    // Get valid targets based on position
+    const validTargets = gameState.players[opponent].field.filter(card => 
+        canAttackTarget(attacker, card)
+    );
+
+    // Check if Rogue Scout's Stealth ability applies
+    const hasStealth = attacker.name === 'Rogue Scout' &&
+        attacker.ability === 'Stealth' &&
+        !attacker.hasAttackedBefore;
+
+    if (hasStealth) {
+        logGameEvent(`${attacker.name}'s Stealth ability allows attacking security directly!`);
+        attacker.hasAttackedBefore = true;
+        directAttack(playerKey, fieldIndex, attacker, opponent);
+        return;
+    }
+
+    // If no valid targets, check if direct attack is possible
+    if (validTargets.length === 0) {
+        // Check if the opponent has any creatures at all
+        if (gameState.players[opponent].field.length === 0) {
+            // If no creatures, allow direct attack
+            directAttack(playerKey, fieldIndex, attacker, opponent);
+            return;
+        } else {
+            // If there are creatures but none in range, inform player
+            logGameEvent(`${attacker.name} has no valid targets in range (Range: ${attacker.attackRange})`);
+            
+            // If player is human, show target selection UI with direct attack option
+            if (playerKey === 'playerA') {
+                showTargetSelectionUI(playerKey, fieldIndex, attacker, validTargets, true);
+            }
+            return;
+        }
+    }
+
+    // If player is human, show target selection UI
+    if (playerKey === 'playerA') {
+        showTargetSelectionUI(playerKey, fieldIndex, attacker, validTargets);
+    } else {
+        // For AI, choose the best target
+        const bestTargetIndex = getBestTargetForAI(attacker, validTargets);
+        const targetCard = validTargets[bestTargetIndex];
+        const targetIndex = gameState.players[opponent].field.findIndex(card => card.id === targetCard.id);
+        
+        // Mark card as having attacked
+        attacker.hasAttacked = true;
+        
+        // Deduct 1 coin for attacking (if player has coins)
+        if (player.coins >= 1) {
+            player.coins -= 1;
+            logGameEvent(`${player.name} spent 1 coin for attack action`);
+        } else {
+            logGameEvent(`${player.name} has no coins left but can still attack`);
+        }
+        
+        // Process the attack
+        processCreatureAttack(playerKey, fieldIndex, opponent, targetIndex);
+    }
+}
+
+// Show UI for selecting a target when attacking
+function showTargetSelectionUI(playerKey, attackerIndex, attacker, validTargets, allowDirectAttack = false) {
+    const opponent = playerKey === 'playerA' ? 'playerB' : 'playerA';
+    
+    // Create a modal overlay
+    const modalOverlay = document.createElement('div');
+    modalOverlay.className = 'modal-overlay';
+    modalOverlay.style.position = 'fixed';
+    modalOverlay.style.top = '0';
+    modalOverlay.style.left = '0';
+    modalOverlay.style.width = '100%';
+    modalOverlay.style.height = '100%';
+    modalOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+    modalOverlay.style.display = 'flex';
+    modalOverlay.style.justifyContent = 'center';
+    modalOverlay.style.alignItems = 'center';
+    modalOverlay.style.zIndex = '1000';
+    
+    // Create the target selection container
+    const selectionContainer = document.createElement('div');
+    selectionContainer.className = 'target-selection';
+    selectionContainer.style.backgroundColor = 'white';
+    selectionContainer.style.padding = '20px';
+    selectionContainer.style.borderRadius = '8px';
+    selectionContainer.style.maxWidth = '600px';
+    selectionContainer.style.textAlign = 'center';
+    
+    // Add selection prompt
+    const promptText = document.createElement('h3');
+    promptText.textContent = `Select a target for ${attacker.name} to attack`;
+    selectionContainer.appendChild(promptText);
+    
+    // Show attacker info
+    const attackerInfo = document.createElement('div');
+    attackerInfo.style.margin = '10px 0';
+    attackerInfo.style.padding = '10px';
+    attackerInfo.style.backgroundColor = '#f5f5f5';
+    attackerInfo.style.borderRadius = '5px';
+    attackerInfo.innerHTML = `<strong>Attacker:</strong> ${attacker.name} (${attacker.cp} CP) | Range: ${attacker.attackRange}`;
+    selectionContainer.appendChild(attackerInfo);
+    
+    // Create targets container
+    const targetsGrid = document.createElement('div');
+    targetsGrid.style.display = 'flex';
+    targetsGrid.style.flexWrap = 'wrap';
+    targetsGrid.style.justifyContent = 'center';
+    targetsGrid.style.gap = '10px';
+    targetsGrid.style.margin = '20px 0';
+    
+    // Add each valid target
+    validTargets.forEach((target, index) => {
+        const targetCard = document.createElement('div');
+        targetCard.className = 'target-card';
+        targetCard.style.width = '120px';
+        targetCard.style.height = '150px';
+        targetCard.style.border = '2px solid #ccc';
+        targetCard.style.borderRadius = '8px';
+        targetCard.style.cursor = 'pointer';
+        targetCard.style.position = 'relative';
+        targetCard.style.display = 'flex';
+        targetCard.style.flexDirection = 'column';
+        targetCard.style.overflow = 'hidden';
+        
+        // Card image
+        const cardImage = document.createElement('div');
+        cardImage.style.flex = '1';
+        cardImage.style.backgroundSize = 'contain';
+        cardImage.style.backgroundPosition = 'center';
+        cardImage.style.backgroundRepeat = 'no-repeat';
+        cardImage.style.backgroundColor = '#f5f5f5';
+        
+        if (target.image) {
+            cardImage.style.backgroundImage = `url(${target.image})`;
+        }
+        
+        targetCard.appendChild(cardImage);
+        
+        // Card info
+        const cardInfo = document.createElement('div');
+        cardInfo.style.padding = '5px';
+        cardInfo.style.backgroundColor = '#333';
+        cardInfo.style.color = 'white';
+        cardInfo.style.fontSize = '12px';
+        cardInfo.innerHTML = `<div>${target.name}</div><div>CP: ${target.cp}</div>`;
+        targetCard.appendChild(cardInfo);
+        
+        // Position indicator
+        const positionLabel = document.createElement('div');
+        const rowName = target.position < 3 ? 'Front' : 'Back';
+        const posInRow = target.position % 3 + 1;
+        positionLabel.textContent = `${rowName} ${posInRow}`;
+        positionLabel.style.position = 'absolute';
+        positionLabel.style.top = '5px';
+        positionLabel.style.right = '5px';
+        positionLabel.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+        positionLabel.style.color = 'white';
+        positionLabel.style.padding = '2px 5px';
+        positionLabel.style.fontSize = '10px';
+        positionLabel.style.borderRadius = '3px';
+        targetCard.appendChild(positionLabel);
+        
+        // When a target is clicked, attack it
+        targetCard.onclick = () => {
+            document.body.removeChild(modalOverlay);
+            
+            // Mark attacker as having attacked
+            attacker.hasAttacked = true;
+            
+            // Deduct 1 coin for attacking (if player has coins)
+            const player = gameState.players[playerKey];
+            if (player.coins >= 1) {
+                player.coins -= 1;
+                logGameEvent(`${player.name} spent 1 coin for attack action`);
+            } else {
+                logGameEvent(`${player.name} has no coins left but can still attack`);
+            }
+            
+            // Find the target's index in the opponent's field
+            const targetIndex = gameState.players[opponent].field.findIndex(card => card.id === target.id);
+            processCreatureAttack(playerKey, attackerIndex, opponent, targetIndex);
+        };
+        
+        // Add highlight on hover
+        targetCard.onmouseover = () => {
+            targetCard.style.borderColor = '#f44336';
+            targetCard.style.boxShadow = '0 0 10px rgba(244, 67, 54, 0.5)';
+        };
+        
+        targetCard.onmouseout = () => {
+            targetCard.style.borderColor = '#ccc';
+            targetCard.style.boxShadow = '';
+        };
+        
+        targetsGrid.appendChild(targetCard);
+    });
+    
+    selectionContainer.appendChild(targetsGrid);
+    
+    // Add option to attack security directly (if allowed or no targets)
+    if (allowDirectAttack || validTargets.length === 0) {
+        const directAttackInfo = document.createElement('div');
+        directAttackInfo.style.margin = '15px 0';
+        directAttackInfo.style.padding = '10px';
+        directAttackInfo.style.backgroundColor = 'rgba(255, 193, 7, 0.2)';
+        directAttackInfo.style.borderRadius = '5px';
+        
+        if (validTargets.length === 0 && gameState.players[opponent].field.length > 0) {
+            directAttackInfo.innerHTML = `<p><strong>No targets in range.</strong> ${attacker.name} can attack security directly.</p>`;
+        } else {
+            directAttackInfo.innerHTML = `<p>You can choose to attack security directly instead of targeting a creature.</p>`;
+        }
+        
+        selectionContainer.appendChild(directAttackInfo);
+        
+        const directAttackBtn = document.createElement('button');
+        directAttackBtn.textContent = 'Attack Security Directly';
+        directAttackBtn.className = 'phase-btn';
+        directAttackBtn.style.backgroundColor = '#f44336';
+        directAttackBtn.style.margin = '10px 0';
+        directAttackBtn.style.padding = '10px 20px';
+        directAttackBtn.onclick = () => {
+            document.body.removeChild(modalOverlay);
+            directAttack(playerKey, attackerIndex, attacker, opponent);
+        };
+        selectionContainer.appendChild(directAttackBtn);
+    }
+    
+    // Add cancel button
+    const cancelButton = document.createElement('button');
+    cancelButton.textContent = 'Cancel';
+    cancelButton.className = 'phase-btn';
+    cancelButton.style.backgroundColor = '#9e9e9e';
+    cancelButton.style.padding = '10px 20px';
+    cancelButton.onclick = () => {
+        document.body.removeChild(modalOverlay);
+    };
+    selectionContainer.appendChild(cancelButton);
+    
+    // Append to modal
+    modalOverlay.appendChild(selectionContainer);
+    
+    // Add to document
+    document.body.appendChild(modalOverlay);
+}
+
+// Choose the best target for AI
+function getBestTargetForAI(attacker, validTargets) {
+    // Simple strategy: attack the target with highest CP first
+    return validTargets.reduce((maxIndex, target, currentIndex, array) =>
+        target.cp > array[maxIndex].cp ? currentIndex : maxIndex, 0);
+}
+
+// Process a creature attack (creature vs creature)
+function processCreatureAttack(playerKey, attackerIndex, opponent, targetIndex) {
+    const player = gameState.players[playerKey];
+    const attacker = player.field[attackerIndex];
+    const defender = gameState.players[opponent].field[targetIndex];
+    
+    logGameEvent(`${player.name}'s ${attacker.name} (${attacker.cp} CP) attacks ${gameState.players[opponent].name}'s ${defender.name} (${defender.cp} CP)!`);
+    
+    // Apply Paladin Guard special ability if applicable
+    let defenderBonus = 0;
+    if (defender.name === 'Paladin Guard') {
+        defenderBonus = 1000;
+        logGameEvent(`${defender.name}'s ability reduces damage by 1000!`);
+    }
+    
+    // Compare CP to determine winner
+    if (attacker.cp > defender.cp + defenderBonus) {
+        logGameEvent(`${defender.name} was defeated in battle!`);
+        gameState.players[opponent].trashPile.push(defender);
+        gameState.players[opponent].field = gameState.players[opponent].field.filter(card => card.id !== defender.id);
+    } else {
+        logGameEvent(`${attacker.name}'s attack was blocked!`);
+        if (attacker.cp < defender.cp) {
+            logGameEvent(`${attacker.name} was defeated in battle!`);
+            player.trashPile.push(attacker);
+            player.field = player.field.filter(card => card.id !== attacker.id);
+        } else {
+            logGameEvent("Both creatures survived the battle!");
+        }
+    }
+    
+    updateUI();
+}
+
+// Process a direct attack on security
+function directAttack(playerKey, fieldIndex, attacker, opponent) {
+    const player = gameState.players[playerKey];
+    
+    // Mark card as having attacked
+    attacker.hasAttacked = true;
+    
+    // Deduct 1 coin for attacking (if player has coins)
+    if (player.coins >= 1) {
+        player.coins -= 1;
+        logGameEvent(`${player.name} spent 1 coin for attack action`);
+    } else {
+        logGameEvent(`${player.name} has no coins left but can still attack`);
+    }
+    
+    logGameEvent(`${player.name}'s ${attacker.name} (${attacker.cp} CP) attacks security directly!`);
+    
+    // Attack goes through to security stack
+    if (gameState.players[opponent].security.length > 0) {
+        const securityCard = gameState.players[opponent].security.pop();
+        logGameEvent(`Security card revealed: ${securityCard.name}!`);
+        
+        // Handle security card effects
+        if (securityCard.type === CARD_TYPES.CREATURE) {
+            logGameEvent(`Security creature ${securityCard.name} (${securityCard.cp} CP) defends!`);
+            if (attacker.cp > securityCard.cp) {
+                logGameEvent(`${securityCard.name} was defeated!`);
+                gameState.players[opponent].trashPile.push(securityCard);
+            } else {
+                logGameEvent(`${attacker.name} was defeated by security!`);
+                player.trashPile.push(attacker);
+                player.field = player.field.filter(card => card.id !== attacker.id);
+                gameState.players[opponent].hand.push(securityCard);
+            }
+        } else if (securityCard.type === CARD_TYPES.SPELL) {
+            logGameEvent(`Security effect: ${securityCard.securityEffect || securityCard.effect}`);
+            
+            // Implement security effects
+            if (securityCard.name === 'Fireball') {
+                logGameEvent(`Fireball deals 2000 damage to ${attacker.name}!`);
+                if (attacker.cp <= 2000) {
+                    logGameEvent(`${attacker.name} was destroyed!`);
+                    player.trashPile.push(attacker);
+                    player.field = player.field.filter(card => card.id !== attacker.id);
+                } else {
+                    logGameEvent(`${attacker.name} survived with ${attacker.cp - 2000} CP!`);
+                }
+            } else if (securityCard.name === 'Healing Wave') {
+                logGameEvent(`${securityCard.securityEffect || securityCard.effect}`);
+                gameState.players[opponent].hand.push(securityCard);
+            }
+            
+            if (securityCard.name !== 'Healing Wave') {
+                gameState.players[opponent].trashPile.push(securityCard);
+            }
+        }
+    } else {
+        logGameEvent(`${player.name} wins! ${gameState.players[opponent].name} has no security left!`);
+        setTimeout(() => {
+            alert(`${player.name} wins!`);
+            initializeGame();
+        }, 1000);
+        return;
+    }
+    
+    updateUI();
+}
+
+
+    // Show a blocking UI prompt for the player instead of using confirm()
 function showBlockingPrompt(opponent, attacker, callback) {
     // Create a modal overlay
     const modalOverlay = document.createElement('div');
@@ -1191,166 +2197,6 @@ function showBlockingPrompt(opponent, attacker, callback) {
     document.body.appendChild(modalOverlay);
 }
 
-// Attack with a creature
-function attackWithCreature(playerKey, fieldIndex) {
-    const player = gameState.players[playerKey];
-    const opponent = playerKey === 'playerA' ? 'playerB' : 'playerA';
-
-    if (playerKey !== gameState.currentPlayer || gameState.currentPhase !== GAME_PHASES.ATTACK) {
-        logGameEvent("Can't attack - not your turn or wrong phase!");
-        return;
-    }
-
-    const attacker = player.field[fieldIndex];
-
-    // Check if card can attack
-    if (!attacker.canAttack || attacker.hasAttacked) {
-        logGameEvent(`${attacker.name} cannot attack right now!`);
-        return;
-    }
-
-    // Mark card as having attacked
-    attacker.hasAttacked = true;
-
-    // Deduct 1 coin for attacking (if player has coins)
-    if (player.coins >= 1) {
-        player.coins -= 1;
-        logGameEvent(`${player.name} spent 1 coin for attack action`);
-    } else {
-        logGameEvent(`${player.name} has no coins left but can still attack`);
-    }
-
-    logGameEvent(`${player.name}'s ${attacker.name} (${attacker.cp} CP) is attacking!`);
-
-    // Check if Rogue Scout's Stealth ability applies
-    const hasStealth = attacker.name === 'Rogue Scout' &&
-        attacker.ability === 'Stealth' &&
-        !attacker.hasAttackedBefore;
-
-    if (hasStealth) {
-        logGameEvent(`${attacker.name}'s Stealth ability prevents blocking!`);
-        attacker.hasAttackedBefore = true;
-        processAttackWithoutBlock(playerKey, fieldIndex, attacker, opponent);
-        return;
-    }
-
-    // Check if opponent will block
-    if (gameState.players[opponent].field.length > 0) {
-        if (opponent === 'playerA') {
-            // For human player, use UI to ask for block
-            showBlockingPrompt(opponent, attacker, (wantsToBlock) => {
-                if (wantsToBlock) {
-                    // For simplicity, use first creature. In a real game, allow player to choose.
-                    const blockerIndex = 0;
-                    processBlock(playerKey, fieldIndex, opponent, blockerIndex);
-                } else {
-                    processAttackWithoutBlock(playerKey, fieldIndex, attacker, opponent);
-                }
-            });
-        } else {
-            // AI decides whether to block
-            const blockDecision = aiDecideToBlock(opponent, attacker);
-            if (blockDecision.block) {
-                processBlock(playerKey, fieldIndex, opponent, blockDecision.blockerIndex);
-            } else {
-                processAttackWithoutBlock(playerKey, fieldIndex, attacker, opponent);
-            }
-        }
-    } else {
-        // No creatures to block with
-        processAttackWithoutBlock(playerKey, fieldIndex, attacker, opponent);
-    }
-}
-
-// Process a block
-function processBlock(playerKey, attackerIndex, opponent, blockerIndex) {
-    const player = gameState.players[playerKey];
-    const attacker = player.field[attackerIndex];
-    const blocker = gameState.players[opponent].field[blockerIndex];
-
-    logGameEvent(`${gameState.players[opponent].name} blocks with ${blocker.name} (${blocker.cp} CP)`);
-
-    // Apply Paladin Guard special ability if applicable
-    let blockerBonus = 0;
-    if (blocker.name === 'Paladin Guard') {
-        blockerBonus = 1000;
-        logGameEvent(`${blocker.name}'s ability reduces damage by 1000!`);
-    }
-
-    // Compare CP to determine winner
-    if (attacker.cp > blocker.cp + blockerBonus) {
-        logGameEvent(`${blocker.name} was defeated in battle!`);
-        gameState.players[opponent].trashPile.push(blocker);
-        gameState.players[opponent].field.splice(blockerIndex, 1);
-    } else {
-        logGameEvent(`${attacker.name}'s attack was blocked!`);
-        if (attacker.cp < blocker.cp) {
-            logGameEvent(`${attacker.name} was defeated in battle!`);
-            player.trashPile.push(attacker);
-            player.field.splice(attackerIndex, 1);
-        } else {
-            logGameEvent("Both creatures survived the battle!");
-        }
-    }
-
-    updateUI();
-}
-
-// Process an attack that wasn't blocked
-function processAttackWithoutBlock(playerKey, fieldIndex, attacker, opponent) {
-    const player = gameState.players[playerKey];
-
-    // Attack goes through to security stack
-    if (gameState.players[opponent].security.length > 0) {
-        const securityCard = gameState.players[opponent].security.pop();
-        logGameEvent(`Security card revealed: ${securityCard.name}!`);
-
-        // Handle security card effects
-        if (securityCard.type === CARD_TYPES.CREATURE) {
-            logGameEvent(`Security creature ${securityCard.name} (${securityCard.cp} CP) defends!`);
-            if (attacker.cp > securityCard.cp) {
-                logGameEvent(`${securityCard.name} was defeated!`);
-                gameState.players[opponent].trashPile.push(securityCard);
-            } else {
-                logGameEvent(`${attacker.name} was defeated by security!`);
-                player.trashPile.push(attacker);
-                player.field.splice(fieldIndex, 1);
-                gameState.players[opponent].hand.push(securityCard);
-            }
-        } else if (securityCard.type === CARD_TYPES.SPELL) {
-            logGameEvent(`Security effect: ${securityCard.securityEffect || securityCard.effect}`);
-
-            // Implement security effects
-            if (securityCard.name === 'Fireball') {
-                logGameEvent(`Fireball deals 2000 damage to ${attacker.name}!`);
-                if (attacker.cp <= 2000) {
-                    logGameEvent(`${attacker.name} was destroyed!`);
-                    player.trashPile.push(attacker);
-                    player.field.splice(fieldIndex, 1);
-                } else {
-                    logGameEvent(`${attacker.name} survived with ${attacker.cp - 2000} CP!`);
-                }
-            } else if (securityCard.name === 'Healing Wave') {
-                logGameEvent(`${securityCard.securityEffect || securityCard.effect}`);
-                gameState.players[opponent].hand.push(securityCard);
-            }
-
-            if (securityCard.name !== 'Healing Wave') {
-                gameState.players[opponent].trashPile.push(securityCard);
-            }
-        }
-    } else {
-        logGameEvent(`${player.name} wins! ${gameState.players[opponent].name} has no security left!`);
-        setTimeout(() => {
-            alert(`${player.name} wins!`);
-            initializeGame();
-        }, 1000);
-        return;
-    }
-
-    updateUI();
-}
-
 // AI decides whether to block and which card to use
 function aiDecideToBlock(playerKey, attacker) {
     const player = gameState.players[playerKey];
@@ -1361,6 +2207,9 @@ function aiDecideToBlock(playerKey, attacker) {
     for (let i = 0; i < player.field.length; i++) {
         const blocker = player.field[i];
         if (blocker.type !== CARD_TYPES.CREATURE) continue;
+        
+        // Check if blocker is in range of attacker
+        if (!canAttackTarget(blocker, attacker)) continue;
 
         // Calculate blocker's value (CP + any special abilities)
         let blockerValue = blocker.cp;
@@ -1486,12 +2335,66 @@ function aiTakeAction() {
                     const handIndex = gameState.players.playerB.hand.findIndex(card => card.id === cardToPlay.id);
 
                     if (handIndex !== -1) {
-                        playCard('playerB', handIndex);
-                        cardPlayed = true;
-
-                        // Give the player a chance to see what happened before AI's next action
-                        setTimeout(aiTakeAction, 1000);
-                        return;
+                        // For AI, find a good position to play the card
+                        let position = -1;
+                        
+                        // For mages, prefer back row
+                        if (cardToPlay.name.toLowerCase().includes('mage')) {
+                            // Check back row first (positions 3, 4, 5)
+                            for (let i = 3; i < 6; i++) {
+                                if (!gameState.players.playerB.field.some(c => c.position === i)) {
+                                    position = i;
+                                    break;
+                                }
+                            }
+                            
+                            // If back row is full, try front row
+                            if (position === -1) {
+                                for (let i = 0; i < 3; i++) {
+                                    if (!gameState.players.playerB.field.some(c => c.position === i)) {
+                                        position = i;
+                                        break;
+                                    }
+                                }
+                            }
+                        } else {
+                            // For non-mages, prefer front row
+                            // Check front row first (positions 0, 1, 2)
+                            for (let i = 0; i < 3; i++) {
+                                if (!gameState.players.playerB.field.some(c => c.position === i)) {
+                                    position = i;
+                                    break;
+                                }
+                            }
+                            
+                            // If front row is full, try back row
+                            if (position === -1) {
+                                for (let i = 3; i < 6; i++) {
+                                    if (!gameState.players.playerB.field.some(c => c.position === i)) {
+                                        position = i;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // If we found a position, play the card there
+                        if (position !== -1) {
+                            playCard('playerB', handIndex, position);
+                            cardPlayed = true;
+                            
+                            // Give the player a chance to see what happened before AI's next action
+                            setTimeout(aiTakeAction, 1000);
+                            return;
+                        } else {
+                            // If all positions are occupied, replace one
+                            // For simplicity, replace the first position
+                            playCard('playerB', handIndex, 0);
+                            cardPlayed = true;
+                            
+                            setTimeout(aiTakeAction, 1000);
+                            return;
+                        }
                     }
                 }
             }
@@ -1553,7 +2456,7 @@ function aiTakeAction() {
                     .filter(card =>
                         card.type === CARD_TYPES.CREATURE &&
                         card.canAttack &&
-                        !card.card.hasAttacked
+                        !card.hasAttacked
                     );
 
                 if (remainingAttackers.length > 0) {
@@ -1799,6 +2702,72 @@ function addGameStyles() {
             background-color: #5e35b1;
         }
         
+        /* Range indicator for cards */
+        .range-indicator {
+            position: absolute;
+            bottom: 25px;
+            right: 5px;
+            font-size: 10px;
+            padding: 2px 4px;
+            border-radius: 3px;
+            color: white;
+        }
+        
+        /* Battlefield grid layout */
+        .battlefield-grid {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            gap: 15px;
+            margin-top: 10px;
+        }
+        
+        .battlefield-row {
+            display: flex;
+            width: 100%;
+        }
+        
+        .row-label {
+            width: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #555;
+            background-color: rgba(0, 0, 0, 0.05);
+            border-radius: 4px;
+            padding: 5px;
+        }
+        
+        .row-cards {
+            flex: 1;
+            display: flex;
+            justify-content: space-around;
+        }
+        
+        .card-slot {
+            width: 165px;
+            height: 110px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(0, 0, 0, 0.02);
+            border-radius: 8px;
+            border: 1px dashed #ccc;
+        }
+        
+        .front-row .row-label {
+            background-color: rgba(255, 0, 0, 0.1);
+            color: #d32f2f;
+            border-left: 3px solid #d32f2f;
+        }
+        
+        .back-row .row-label {
+            background-color: rgba(0, 0, 255, 0.1);
+            color: #1976d2;
+            border-left: 3px solid #1976d2;
+        }
+        
         /* Make cards more responsive */
         @media (max-width: 768px) {
             .card {
@@ -1968,6 +2937,11 @@ if (typeof module !== 'undefined' && module.exports) {
         countCreatures,
         MAX_CREATURES,
         MAX_APPRENTICES,
-        STARTING_COINS
+        STARTING_COINS,
+        canAttackTarget,
+        showPositionSelectionUI,
+        showTargetSelectionUI,
+        directAttack,
+        processCreatureAttack
     };
 }
