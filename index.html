@@ -70,6 +70,61 @@
             background-color: rgba(0, 0, 0, 0.03);
         }
         
+        /* Battlefield grid layout */
+        .battlefield-grid {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            gap: 15px;
+            margin-top: 10px;
+        }
+        
+        .battlefield-row {
+            display: flex;
+            width: 100%;
+        }
+        
+        .row-label {
+            width: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #555;
+            background-color: rgba(0, 0, 0, 0.05);
+            border-radius: 4px;
+            padding: 5px;
+        }
+        
+        .row-cards {
+            flex: 1;
+            display: flex;
+            justify-content: space-around;
+        }
+        
+        .card-slot {
+            width: 165px;
+            height: 110px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(0, 0, 0, 0.02);
+            border-radius: 8px;
+            border: 1px dashed #ccc;
+        }
+        
+        .front-row .row-label {
+            background-color: rgba(255, 0, 0, 0.1);
+            color: #d32f2f;
+            border-left: 3px solid #d32f2f;
+        }
+        
+        .back-row .row-label {
+            background-color: rgba(0, 0, 255, 0.1);
+            color: #1976d2;
+            border-left: 3px solid #1976d2;
+        }
+        
         .card {
             display: inline-block;
             width: 156px; /* 1.56:1 aspect ratio for 2400x1536 images */
@@ -136,7 +191,7 @@
             text-shadow: 1px 1px 1px rgba(0,0,0,0.7);
         }
         
-        .memory-gauge {
+        .coin-display {
             font-size: 18px;
             margin: 20px 0;
             font-weight: bold;
@@ -201,6 +256,44 @@
             white-space: nowrap;
             text-overflow: ellipsis;
         }
+        
+        /* Field limit indicator */
+        .field-limit {
+            margin-bottom: 5px;
+            color: #666;
+            font-size: 12px;
+        }
+        
+        /* Optional draw button */
+        .optional-draw {
+            background-color: #673ab7;
+            margin-left: 20px;
+        }
+        
+        .optional-draw:hover {
+            background-color: #5e35b1;
+        }
+        
+        /* Apprentice zone styling */
+        .apprentice-zone {
+            background-color: rgba(255, 215, 0, 0.1);
+            border: 1px dashed gold;
+            padding: 10px;
+            margin: 10px 0;
+            min-height: 60px;
+            border-radius: 4px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .apprentice-limit {
+            color: #f44336;
+            font-style: italic;
+            margin: 5px;
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
@@ -213,7 +306,7 @@
                 <div class="field" id="playerBField"></div>
                 <div class="security" id="playerBSecurity">Security: 5</div>
             </div>
-            <div class="memory-gauge" id="memoryGauge">Memory Gauge: 0</div>
+            <div class="coin-display" id="coinDisplay">Player A's Coins: 10 | Turn: 1 | Phase: Draw</div>
             <div class="player-area" id="playerA">
                 <h2>Player A</h2>
                 <div class="security" id="playerASecurity">Security: 5</div>
