@@ -2182,4 +2182,55 @@ function directAttack(playerKey, fieldIndex, attacker, opponent) {
         logGameEvent(`${player.name} has no coins left but can still attack`);
     }
     
-    logGameEvent(`${player.name}'s ${att
+    logGameEvent(`${player.name}'s ${attacker.name} (Position ${attacker.position}) attacks security directly!`);
+    
+    // Attack goes through to security stack
+    if (gameState.players[opponent].security.length > 0) {
+        const securityCard = gameState.players[opponent].security.pop();
+        logGameEvent(`Security card revealed: ${securityCard.name}!`);
+        
+        // Handle security card effects
+        if (securityCard.type === CARD_TYPES.CREATURE) {
+            logGameEvent(`Security creature ${securityCard.name} (${securityCard.cp} CP) defends!`);
+            if (attacker.cp > securityCard.cp) {
+                logGameEvent(`${securityCard.name} was defeated!`);
+                gameState.players[opponent].trashPile.push(securityCard);
+            } else {
+                logGameEvent(`${attacker.name} was defeated by security!`);
+                player.trashPile.push(attacker);
+                player.field = player.field.filter(card => card.id !== attacker.id);
+                gameState.players[opponent].hand.push(securityCard);
+            }
+        } else if (securityCard.type === CARD_TYPES.SPELL) {
+            logGameEvent(`Security effect: ${securityCard.securityEffect || securityCard.effect}`);
+            
+            // Implement security effects
+            if (securityCard.name === 'Fireball') {
+                logGameEvent(`Fireball deals 2000 damage to ${attacker.name}!`);
+                if (attacker.cp <= 2000) {
+                    logGameEvent(`${attacker.name} was destroyed!`);
+                    player.trashPile.push(attacker);
+                    player.field = player.field.filter(card => card.id !== attacker.id);
+                } else {
+                    logGameEvent(`${attacker.name} survived with ${attacker.cp - 2000} CP!`);
+                }
+            } else if (securityCard.name === 'Healing Wave') {
+                logGameEvent(`${securityCard.securityEffect || securityCard.effect}`);
+                gameState.players[opponent].hand.push(securityCard);
+            }
+            
+            if (securityCard.name !== 'Healing Wave') {
+                gameState.players[opponent].trashPile.push(securityCard);
+            }
+        }
+    } else {
+        logGameEvent(`${player.name} wins! ${gameState.players[opponent].name} has no security left!`);
+        setTimeout(() => {
+            alert(`${player.name} wins!`);
+            initializeGame();
+        }, 1000);
+        return;
+    }
+    
+    updateUI();
+}
