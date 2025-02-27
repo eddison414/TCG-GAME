@@ -2,23 +2,26 @@
 const CARD_TYPES = {
     CREATURE: 'creature',
     SPELL: 'spell',
-    APPRENTICE: 'apprentice'  // New card type for apprentice cards
+    APPRENTICE: 'apprentice'  // Card type for apprentice cards
 };
 
-// Game phases
+// Updated game phases to include movement
 const GAME_PHASES = {
     DRAW: 'draw',
+    MOVEMENT: 'movement', // New phase
     PLAY: 'play',
     ATTACK: 'attack',
     END: 'end'
 };
 
-// Field limits
-const MAX_CREATURES = 6;
+// Field limits - expanded to 9 slots in a 3x3 grid
+const MAX_CREATURES = 6; // Still only allows 6 creatures max
+const MAX_FIELD_SLOTS = 9; // Total slots in the field (3x3 grid)
 const MAX_APPRENTICES = 3;
 const STARTING_COINS = 10;
+const MOVEMENT_COST = 2; // Cost to move a creature
 
-// Initialize the game state with new apprentice deck
+// Initialize the game state with new field layout
 const gameState = {
     currentPhase: GAME_PHASES.DRAW,
     currentPlayer: 'playerA',
@@ -33,9 +36,10 @@ const gameState = {
             field: [],
             security: [],
             trashPile: [],
-            apprenticeDeck: [],  // New deck for apprentice cards
-            apprenticeZone: [],   // New zone to place active apprentice cards
-            hasPlayedApprentice: false // Track if player has summoned an apprentice this turn
+            apprenticeDeck: [],  // Deck for apprentice cards
+            apprenticeZone: [],   // Zone to place active apprentice cards
+            hasPlayedApprentice: false, // Track if player has summoned an apprentice this turn
+            hasMoved: [] // Track which creatures have moved this turn
         },
         playerB: {
             name: 'Player B (AI)',
@@ -45,9 +49,10 @@ const gameState = {
             field: [],
             security: [],
             trashPile: [],
-            apprenticeDeck: [],  // New deck for apprentice cards
-            apprenticeZone: [],   // New zone to place active apprentice cards
-            hasPlayedApprentice: false // Track if player has summoned an apprentice this turn
+            apprenticeDeck: [],  // Deck for apprentice cards
+            apprenticeZone: [],   // Zone to place active apprentice cards
+            hasPlayedApprentice: false, // Track if player has summoned an apprentice this turn
+            hasMoved: [] // Track which creatures have moved this turn
         }
     },
     evolution: {
@@ -394,6 +399,217 @@ function initializePlayerApprenticeDeck(playerKey) {
     return player.apprenticeDeck;
 }
 
+// Helper function to check if two positions are adjacent in the 3x3 grid
+function arePositionsAdjacent(pos1, pos2) {
+    // Convert positions to 2D coordinates in a 3x3 grid
+    const row1 = Math.floor(pos1 / 3);
+    const col1 = pos1 % 3;
+    const row2 = Math.floor(pos2 / 3);
+    const col2 = pos2 % 3;
+    
+    // Calculate Manhattan distance
+    const distance = Math.abs(row1 - row2) + Math.abs(col1 - col2);
+    
+    // Positions are adjacent if they're 1 unit apart
+    return distance === 1;
+}
+
+// Get all valid adjacent empty positions for a card
+function getValidMovementPositions(playerKey, cardIndex) {
+    const player = gameState.players[playerKey];
+    const card = player.field[cardIndex];
+    const validPositions = [];
+    
+    // Check all positions 0-8 (3x3 grid)
+    for (let pos = 0; pos < MAX_FIELD_SLOTS; pos++) {
+        // Skip if the position is already occupied
+        if (player.field.some(c => c.position === pos)) {
+            continue;
+        }
+        
+        // Check if this position is adjacent to the card's current position
+        if (arePositionsAdjacent(card.position, pos)) {
+            validPositions.push(pos);
+        }
+    }
+    
+    return validPositions;
+}
+
+// Function to move a creature
+function moveCreature(playerKey, cardIndex, newPosition) {
+    const player = gameState.players[playerKey];
+    const card = player.field[cardIndex];
+    
+    // Check if it's the movement phase
+    if (gameState.currentPhase !== GAME_PHASES.MOVEMENT) {
+        logGameEvent("Can only move creatures during movement phase");
+        return false;
+    }
+    
+    // Check if the player has enough coins
+    if (player.coins < MOVEMENT_COST) {
+        logGameEvent(`Not enough coins to move. Movement costs ${MOVEMENT_COST} coins.`);
+        return false;
+    }
+    
+    // Check if the card has already moved this turn
+    if (player.hasMoved.includes(card.id)) {
+        logGameEvent(`${card.name} has already moved this turn.`);
+        return false;
+    }
+    
+    // Check if the new position is valid
+    const validPositions = getValidMovementPositions(playerKey, cardIndex);
+    if (!validPositions.includes(newPosition)) {
+        logGameEvent(`Invalid movement target. Creatures can only move to adjacent empty spaces.`);
+        return false;
+    }
+    
+    // Move the creature
+    const oldPosition = card.position;
+    card.position = newPosition;
+    player.coins -= MOVEMENT_COST;
+    player.hasMoved.push(card.id);
+    
+    logGameEvent(`${card.name} moved from position ${oldPosition} to position ${newPosition} (cost: ${MOVEMENT_COST} coins)`);
+    updateUI();
+    return true;
+}
+
+// Show UI for selecting movement destination
+function showMovementSelectionUI(playerKey, cardIndex) {
+    const player = gameState.players[playerKey];
+    const card = player.field[cardIndex];
+    const validPositions = getValidMovementPositions(playerKey, cardIndex);
+    
+    // Create modal overlay
+    const modalOverlay = document.createElement('div');
+    modalOverlay.className = 'modal-overlay';
+    
+    // Create the movement selection container
+    const selectionContainer = document.createElement('div');
+    selectionContainer.className = 'movement-selection';
+    selectionContainer.style.backgroundColor = 'white';
+    selectionContainer.style.padding = '20px';
+    selectionContainer.style.borderRadius = '8px';
+    selectionContainer.style.maxWidth = '600px';
+    selectionContainer.style.textAlign = 'center';
+    
+    // Add selection title
+    const title = document.createElement('h3');
+    title.textContent = `Select movement destination for ${card.name}`;
+    selectionContainer.appendChild(title);
+    
+    // Add cost info
+    const costInfo = document.createElement('p');
+    costInfo.textContent = `Movement cost: ${MOVEMENT_COST} coins`;
+    costInfo.style.color = player.coins >= MOVEMENT_COST ? '#4caf50' : '#f44336';
+    costInfo.style.fontWeight = 'bold';
+    selectionContainer.appendChild(costInfo);
+    
+    // Create the grid visualization
+    const gridContainer = document.createElement('div');
+    gridContainer.style.display = 'grid';
+    gridContainer.style.gridTemplateColumns = 'repeat(3, 1fr)';
+    gridContainer.style.gridTemplateRows = 'repeat(3, 1fr)';
+    gridContainer.style.gap = '10px';
+    gridContainer.style.margin = '20px auto';
+    gridContainer.style.width = '300px';
+    gridContainer.style.height = '300px';
+    
+    // Create cells for each position
+    for (let pos = 0; pos < MAX_FIELD_SLOTS; pos++) {
+        const cell = document.createElement('div');
+        cell.style.border = '1px solid #ccc';
+        cell.style.borderRadius = '8px';
+        cell.style.display = 'flex';
+        cell.style.justifyContent = 'center';
+        cell.style.alignItems = 'center';
+        cell.style.position = 'relative';
+        
+        // Highlight current position
+        if (pos === card.position) {
+            cell.style.backgroundColor = '#f0f0f0';
+            cell.style.border = '2px solid #333';
+            
+            const cardIndicator = document.createElement('div');
+            cardIndicator.textContent = card.name;
+            cardIndicator.style.fontSize = '12px';
+            cardIndicator.style.fontWeight = 'bold';
+            cardIndicator.style.padding = '5px';
+            
+            cell.appendChild(cardIndicator);
+        } 
+        // Highlight valid movement targets
+        else if (validPositions.includes(pos)) {
+            cell.style.backgroundColor = 'rgba(76, 175, 80, 0.2)';
+            cell.style.border = '2px dashed #4caf50';
+            cell.style.cursor = 'pointer';
+            
+            const moveLabel = document.createElement('div');
+            moveLabel.textContent = 'Move here';
+            moveLabel.style.fontSize = '12px';
+            moveLabel.style.color = '#4caf50';
+            
+            cell.appendChild(moveLabel);
+            
+            // Add click event
+            cell.onclick = () => {
+                document.body.removeChild(modalOverlay);
+                moveCreature(playerKey, cardIndex, pos);
+            };
+        }
+        // Check if another creature is at this position
+        else {
+            const occupyingCard = player.field.find(c => c.position === pos);
+            if (occupyingCard) {
+                cell.style.backgroundColor = 'rgba(255, 0, 0, 0.1)';
+                
+                const occupiedLabel = document.createElement('div');
+                occupiedLabel.textContent = occupyingCard.name;
+                occupiedLabel.style.fontSize = '12px';
+                occupiedLabel.style.color = '#666';
+                
+                cell.appendChild(occupiedLabel);
+            } else {
+                cell.style.backgroundColor = 'rgba(0, 0, 0, 0.05)';
+                cell.textContent = 'Empty';
+                cell.style.color = '#999';
+                cell.style.fontSize = '12px';
+            }
+        }
+        
+        // Add position label
+        const posLabel = document.createElement('div');
+        posLabel.textContent = `Pos ${pos}`;
+        posLabel.style.position = 'absolute';
+        posLabel.style.top = '5px';
+        posLabel.style.right = '5px';
+        posLabel.style.fontSize = '10px';
+        posLabel.style.color = '#666';
+        
+        cell.appendChild(posLabel);
+        gridContainer.appendChild(cell);
+    }
+    
+    selectionContainer.appendChild(gridContainer);
+    
+    // Add cancel button
+    const cancelButton = document.createElement('button');
+    cancelButton.textContent = 'Cancel';
+    cancelButton.className = 'phase-btn';
+    cancelButton.style.backgroundColor = '#f44336';
+    cancelButton.style.marginTop = '10px';
+    cancelButton.onclick = () => {
+        document.body.removeChild(modalOverlay);
+    };
+    
+    selectionContainer.appendChild(cancelButton);
+    modalOverlay.appendChild(selectionContainer);
+    document.body.appendChild(modalOverlay);
+}
+
 // Update UI
 function updateUI() {
     const currentPlayerObj = gameState.players[gameState.currentPlayer];
@@ -440,6 +656,7 @@ function updatePhaseButtons() {
 
     const buttons = {
         draw: document.getElementById('draw-phase-btn'),
+        movement: document.getElementById('movement-phase-btn'), // New movement phase button
         play: document.getElementById('play-phase-btn'),
         attack: document.getElementById('attack-phase-btn'),
         end: document.getElementById('end-phase-btn')
@@ -447,14 +664,19 @@ function updatePhaseButtons() {
 
     // Reset all buttons
     Object.values(buttons).forEach(btn => {
-        btn.classList.remove('active');
-        btn.disabled = gameState.currentPlayer !== 'playerA';
+        if (btn) {
+            btn.classList.remove('active');
+            btn.disabled = gameState.currentPlayer !== 'playerA';
+        }
     });
 
     // Highlight current phase
     switch (gameState.currentPhase) {
         case GAME_PHASES.DRAW:
             buttons.draw.classList.add('active');
+            break;
+        case GAME_PHASES.MOVEMENT:
+            buttons.movement.classList.add('active');
             break;
         case GAME_PHASES.PLAY:
             buttons.play.classList.add('active');
@@ -488,7 +710,7 @@ function countCreatures(playerKey) {
     return gameState.players[playerKey].field.filter(card => card.type === CARD_TYPES.CREATURE).length;
 }
 
-// Render a player's field
+// Render a player's field with the new 3x3 grid layout
 function renderPlayerField(playerKey) {
     const player = gameState.players[playerKey];
     const fieldElement = domElements[`${playerKey}Field`];
@@ -500,144 +722,36 @@ function renderPlayerField(playerKey) {
     fieldLimitIndicator.textContent = `Creatures: ${countCreatures(playerKey)}/${MAX_CREATURES}`;
     fieldElement.appendChild(fieldLimitIndicator);
     
-    // Create battlefield grid container
+    // Create battlefield grid container for 3x3 layout
     const battlefieldGrid = document.createElement('div');
     battlefieldGrid.className = 'battlefield-grid';
+    battlefieldGrid.style.display = 'grid';
+    battlefieldGrid.style.gridTemplateColumns = 'repeat(3, 1fr)';
+    battlefieldGrid.style.gridTemplateRows = 'repeat(3, 1fr)';
+    battlefieldGrid.style.gap = '10px';
+    battlefieldGrid.style.margin = '10px auto';
+    battlefieldGrid.style.maxWidth = '600px';
     fieldElement.appendChild(battlefieldGrid);
     
-    // Create front row
-    const frontRow = document.createElement('div');
-    frontRow.className = 'battlefield-row front-row';
-    
-    // Create front row label
-    const frontRowLabel = document.createElement('div');
-    frontRowLabel.className = 'row-label';
-    frontRowLabel.textContent = 'Front';
-    frontRow.appendChild(frontRowLabel);
-    
-    // Create front row card container
-    const frontRowCards = document.createElement('div');
-    frontRowCards.className = 'row-cards';
-    frontRow.appendChild(frontRowCards);
-    
-    // Create back row
-    const backRow = document.createElement('div');
-    backRow.className = 'battlefield-row back-row';
-    
-    // Create back row label
-    const backRowLabel = document.createElement('div');
-    backRowLabel.className = 'row-label';
-    backRowLabel.textContent = 'Back';
-    backRow.appendChild(backRowLabel);
-    
-    // Create back row card container
-    const backRowCards = document.createElement('div');
-    backRowCards.className = 'row-cards';
-    backRow.appendChild(backRowCards);
-    
-    // Append rows to battlefield grid
-    battlefieldGrid.appendChild(frontRow);
-    battlefieldGrid.appendChild(backRow);
-    
-    // Separate cards into front and back rows (first 3 in front, rest in back)
-    const frontRowIndices = [];
-    const backRowIndices = [];
-    
-    player.field.forEach((card, index) => {
-        // Use position property to determine row
-        if (card.position < 3) {
-            frontRowIndices.push(index);
-        } else if (card.position < 6) {
-            backRowIndices.push(index);
-        }
-    });
-    
-    // Create slots for front row (3 slots)
-    for (let i = 0; i < 3; i++) {
+    // Create slots for each position (0-8)
+    for (let position = 0; position < MAX_FIELD_SLOTS; position++) {
         const slot = document.createElement('div');
         slot.className = 'card-slot';
         
-        // Check if there's a card for this position
-        const cardIndex = player.field.findIndex(card => card.position === i);
+        // Add position label
+        const posLabel = document.createElement('div');
+        posLabel.className = 'position-label';
+        posLabel.textContent = `Pos ${position}`;
+        posLabel.style.position = 'absolute';
+        posLabel.style.top = '2px';
+        posLabel.style.left = '2px';
+        posLabel.style.fontSize = '10px';
+        posLabel.style.color = '#666';
+        slot.appendChild(posLabel);
         
-        // If we have a card for this slot
-        if (cardIndex !== -1) {
-            const card = player.field[cardIndex];
-            const cardElement = createCardElement(card);
-            
-            // Add active/exhausted visual state
-            if (card.hasAttacked) {
-                cardElement.classList.add('exhausted');
-                cardElement.style.transform = 'rotate(90deg)';
-            }
-            
-            // Add card ability text if present
-            if (card.ability) {
-                const abilityElement = document.createElement('div');
-                abilityElement.className = 'passive';
-                abilityElement.textContent = card.ability;
-                cardElement.appendChild(abilityElement);
-            }
-            
-            // Show evolved status if applicable
-            if (card.isEvolved) {
-                const evolvedElement = document.createElement('div');
-                evolvedElement.className = 'evolved-indicator';
-                evolvedElement.textContent = '★ Evolved';
-                evolvedElement.style.position = 'absolute';
-                evolvedElement.style.top = '20px';
-                evolvedElement.style.width = '100%';
-                evolvedElement.style.textAlign = 'center';
-                evolvedElement.style.color = 'gold';
-                evolvedElement.style.textShadow = '1px 1px 2px black';
-                evolvedElement.style.fontWeight = 'bold';
-                cardElement.appendChild(evolvedElement);
-            }
-            
-            // Add range indicator
-            if (card.attackRange) {
-                const rangeElement = document.createElement('div');
-                rangeElement.className = 'range-indicator';
-                rangeElement.textContent = `Range: ${card.attackRange}`;
-                rangeElement.style.position = 'absolute';
-                rangeElement.style.bottom = '25px';
-                rangeElement.style.right = '5px';
-                rangeElement.style.fontSize = '10px';
-                rangeElement.style.backgroundColor = card.attackRange > 1 ? 'rgba(0, 128, 255, 0.8)' : 'rgba(255, 99, 71, 0.8)';
-                rangeElement.style.color = 'white';
-                rangeElement.style.padding = '2px 4px';
-                rangeElement.style.borderRadius = '3px';
-                cardElement.appendChild(rangeElement);
-            }
-            
-            // Add attack functionality only for current player's cards that can attack
-            if (playerKey === gameState.currentPlayer &&
-                gameState.currentPhase === GAME_PHASES.ATTACK &&
-                card.type === CARD_TYPES.CREATURE &&
-                !card.hasAttacked &&
-                card.canAttack) {
-                cardElement.onclick = () => attackWithCreature(playerKey, cardIndex);
-                cardElement.classList.add('attackable');
-            } else {
-                cardElement.classList.add('disabled');
-            }
-            
-            slot.appendChild(cardElement);
-        }
-        
-        frontRowCards.appendChild(slot);
-    }
-    
-    // Create slots for back row (3 slots)
-    for (let i = 0; i < 3; i++) {
-        const slot = document.createElement('div');
-        slot.className = 'card-slot';
-        const position = i + 3; // Back row positions are 3, 4, 5
-        
-        // Check if there's a card for this position
+        // Check if there's a card at this position
         const cardIndex = player.field.findIndex(card => card.position === position);
         
-        // If we have a card for this slot
         if (cardIndex !== -1) {
             const card = player.field[cardIndex];
             const cardElement = createCardElement(card);
@@ -687,22 +801,65 @@ function renderPlayerField(playerKey) {
                 cardElement.appendChild(rangeElement);
             }
             
-            // Add attack functionality only for current player's cards that can attack
-            if (playerKey === gameState.currentPlayer &&
+            // Add moved indicator if it has moved this turn
+            if (player.hasMoved.includes(card.id)) {
+                const movedIndicator = document.createElement('div');
+                movedIndicator.className = 'moved-indicator';
+                movedIndicator.textContent = 'Moved';
+                movedIndicator.style.position = 'absolute';
+                movedIndicator.style.bottom = '40px';
+                movedIndicator.style.right = '5px';
+                movedIndicator.style.backgroundColor = 'rgba(76, 175, 80, 0.8)';
+                movedIndicator.style.color = 'white';
+                movedIndicator.style.padding = '2px 4px';
+                movedIndicator.style.fontSize = '10px';
+                movedIndicator.style.borderRadius = '3px';
+                cardElement.appendChild(movedIndicator);
+            }
+            
+            // Add movement functionality during movement phase
+            if (playerKey === gameState.currentPlayer && 
+                gameState.currentPhase === GAME_PHASES.MOVEMENT &&
+                !player.hasMoved.includes(card.id) &&
+                player.coins >= MOVEMENT_COST &&
+                getValidMovementPositions(playerKey, cardIndex).length > 0) {
+                
+                cardElement.classList.add('movable');
+                cardElement.style.border = '2px solid #2196f3';
+                cardElement.onclick = () => showMovementSelectionUI(playerKey, cardIndex);
+                
+                // Add movable indicator
+                const movableIndicator = document.createElement('div');
+                movableIndicator.className = 'movable-indicator';
+                movableIndicator.textContent = 'Can Move';
+                movableIndicator.style.position = 'absolute';
+                movableIndicator.style.bottom = '40px';
+                movableIndicator.style.left = '5px';
+                movableIndicator.style.backgroundColor = 'rgba(33, 150, 243, 0.8)';
+                movableIndicator.style.color = 'white';
+                movableIndicator.style.padding = '2px 4px';
+                movableIndicator.style.fontSize = '10px';
+                movableIndicator.style.borderRadius = '3px';
+                cardElement.appendChild(movableIndicator);
+            } 
+            // Add attack functionality during attack phase
+            else if (playerKey === gameState.currentPlayer &&
                 gameState.currentPhase === GAME_PHASES.ATTACK &&
                 card.type === CARD_TYPES.CREATURE &&
                 !card.hasAttacked &&
                 card.canAttack) {
+                
                 cardElement.onclick = () => attackWithCreature(playerKey, cardIndex);
                 cardElement.classList.add('attackable');
-            } else {
+            } 
+            else {
                 cardElement.classList.add('disabled');
             }
             
             slot.appendChild(cardElement);
         }
         
-        backRowCards.appendChild(slot);
+        battlefieldGrid.appendChild(slot);
     }
     
     // Add placeholder text if field is empty
@@ -947,7 +1104,7 @@ function evolveApprentice(playerKey, handIndex) {
         } else {
             // For AI, choose a position automatically (first available position)
             let position = -1;
-            for (let i = 0; i < 6; i++) {
+            for (let i = 0; i < 6; i++) {  // Only consider first 6 positions for initial placement
                 if (!player.field.some(card => card.position === i)) {
                     position = i;
                     break;
@@ -1089,9 +1246,7 @@ function createCardElement(card) {
     if (card.position !== undefined && card.position >= 0) {
         const positionElement = document.createElement('div');
         positionElement.className = 'position-indicator';
-        const rowName = card.position < 3 ? 'Front' : 'Back';
-        const posInRow = card.position % 3 + 1;
-        positionElement.textContent = `${rowName} ${posInRow}`;
+        positionElement.textContent = `Pos ${card.position}`;
         positionElement.style.position = 'absolute';
         positionElement.style.top = '5px';
         positionElement.style.right = '5px';
@@ -1113,23 +1268,18 @@ function canPlayCard(playerKey, card) {
     return player.coins >= card.cost;
 }
 
-// Check if a creature can attack a specific target based on their positions
+// Updated canAttackTarget function for the 3x3 grid layout
 function canAttackTarget(attacker, defender) {
-    // If attacker or defender doesn't have a position, they can't engage in positional combat
+    // If attacker or defender doesn't have a position, they can't engage
     if (attacker.position === -1 || defender.position === -1) return false;
     
-    // Calculate position difference
-    const attackerPosition = attacker.position;
-    const defenderPosition = defender.position;
+    // Convert positions to 2D coordinates in a 3x3 grid
+    const attackerRow = Math.floor(attacker.position / 3);
+    const attackerCol = attacker.position % 3;
+    const defenderRow = Math.floor(defender.position / 3);
+    const defenderCol = defender.position % 3;
     
-    // Convert positions to 2D coordinates (row, column)
-    const attackerRow = Math.floor(attackerPosition / 3);  // 0 for front, 1 for back
-    const attackerCol = attackerPosition % 3;              // 0, 1, or 2 for position in row
-    
-    const defenderRow = Math.floor(defenderPosition / 3);  // 0 for front, 1 for back
-    const defenderCol = defenderPosition % 3;              // 0, 1, or 2 for position in row
-    
-    // Calculate the Manhattan distance between the two positions
+    // Calculate Manhattan distance
     const distance = Math.abs(attackerRow - defenderRow) + Math.abs(attackerCol - defenderCol);
     
     // Check if the distance is within the attacker's range
@@ -1184,7 +1334,7 @@ function playCard(playerKey, handIndex, position = null, isEvolution = false, ap
 
     // Handle card type specific actions
     if (card.type === CARD_TYPES.CREATURE) {
-        // If a specific position was provided, use it
+        // For new game, creatures can only be initially placed in positions 0-5
         if (position !== null && position >= 0 && position < 6) {
             // Check if the position is already occupied
             const existingCardIndex = player.field.findIndex(c => c.position === position);
@@ -1199,16 +1349,16 @@ function playCard(playerKey, handIndex, position = null, isEvolution = false, ap
             // Set the card's position
             card.position = position;
         } else {
-            // For AI or fallback, find the first available position
+            // For AI or fallback, find the first available position in positions 0-5
             let availablePosition = -1;
-            for (let i = 0; i < 6; i++) {
+            for (let i = 0; i < 6; i++) { // Only consider first 6 positions for initial placement
                 if (!player.field.some(c => c.position === i)) {
                     availablePosition = i;
                     break;
                 }
             }
             
-            // If all positions are filled but we have less than 6 creatures (shouldn't happen, but just in case)
+            // If all positions 0-5 are filled but we have less than 6 creatures (shouldn't happen, but just in case)
             if (availablePosition === -1 && player.field.length < 6) {
                 // Remove the oldest card (first in the array)
                 const oldestCard = player.field[0];
@@ -1226,9 +1376,7 @@ function playCard(playerKey, handIndex, position = null, isEvolution = false, ap
         player.hand.splice(handIndex, 1);
         
         // Log the specific position
-        const rowName = card.position < 3 ? 'front' : 'back';
-        const posInRow = card.position % 3;
-        logGameEvent(`${player.name} played ${card.name} (${card.cp} CP) in the ${rowName} row, position ${posInRow + 1}`);
+        logGameEvent(`${player.name} played ${card.name} (${card.cp} CP) at position ${card.position}`);
 
         // Implement card effects
         if (card.name === 'Mage Apprentice') {
@@ -1387,9 +1535,7 @@ function showSpellTargetSelectionUI(playerKey, handIndex, spell, targetPlayerKey
         // Position indicator
         if (target.position !== undefined && target.position >= 0) {
             const positionLabel = document.createElement('div');
-            const rowName = target.position < 3 ? 'Front' : 'Back';
-            const posInRow = target.position % 3 + 1;
-            positionLabel.textContent = `${rowName} ${posInRow}`;
+            positionLabel.textContent = `Position ${target.position}`;
             positionLabel.style.position = 'absolute';
             positionLabel.style.top = '5px';
             positionLabel.style.right = '5px';
@@ -1514,194 +1660,109 @@ function showPositionSelectionUI(playerKey, handIndex, isEvolution = false, appr
         `Select a position for ${card.name}`;
     selectionContainer.appendChild(promptText);
     
-    // Create battlefield visualization for selection
-    const battlefieldGrid = document.createElement('div');
-    battlefieldGrid.className = 'position-battlefield-grid';
-    battlefieldGrid.style.display = 'flex';
-    battlefieldGrid.style.flexDirection = 'column';
-    battlefieldGrid.style.gap = '15px';
-    battlefieldGrid.style.margin = '20px 0';
+    // Add note about position limitations (can only summon in first 6 positions)
+    const positionNote = document.createElement('p');
+    positionNote.textContent = 'Creatures can only be summoned in positions 0-5. Positions 6-8 can only be reached by movement.';
+    positionNote.style.color = '#1976d2';
+    positionNote.style.fontStyle = 'italic';
+    positionNote.style.marginBottom = '15px';
+    selectionContainer.appendChild(positionNote);
     
-    // Create front row for selection
-    const frontRow = document.createElement('div');
-    frontRow.className = 'position-row';
-    frontRow.style.display = 'flex';
-    frontRow.style.justifyContent = 'center';
-    frontRow.style.gap = '10px';
+    // Create battlefield grid visualization in 3x3 format
+    const gridContainer = document.createElement('div');
+    gridContainer.style.display = 'grid';
+    gridContainer.style.gridTemplateColumns = 'repeat(3, 1fr)';
+    gridContainer.style.gridTemplateRows = 'repeat(3, 1fr)';
+    gridContainer.style.gap = '10px';
+    gridContainer.style.margin = '20px auto';
+    gridContainer.style.width = '300px';
+    gridContainer.style.height = '300px';
     
-    // Create back row for selection
-    const backRow = document.createElement('div');
-    backRow.className = 'position-row';
-    backRow.style.display = 'flex';
-    backRow.style.justifyContent = 'center';
-    backRow.style.gap = '10px';
-    
-    // Add labels
-    const frontLabel = document.createElement('div');
-    frontLabel.textContent = 'Front';
-    frontLabel.style.width = '60px';
-    frontLabel.style.display = 'flex';
-    frontLabel.style.alignItems = 'center';
-    frontLabel.style.justifyContent = 'center';
-    frontLabel.style.fontWeight = 'bold';
-    frontLabel.style.backgroundColor = 'rgba(255, 0, 0, 0.1)';
-    frontLabel.style.color = '#d32f2f';
-    frontLabel.style.borderRadius = '4px';
-    frontLabel.style.borderLeft = '3px solid #d32f2f';
-    frontRow.appendChild(frontLabel);
-    
-    const backLabel = document.createElement('div');
-    backLabel.textContent = 'Back';
-    backLabel.style.width = '60px';
-    backLabel.style.display = 'flex';
-    backLabel.style.alignItems = 'center';
-    backLabel.style.justifyContent = 'center';
-    backLabel.style.fontWeight = 'bold';
-    backLabel.style.backgroundColor = 'rgba(0, 0, 255, 0.1)';
-    backLabel.style.color = '#1976d2';
-    backLabel.style.borderRadius = '4px';
-    backLabel.style.borderLeft = '3px solid #1976d2';
-    backRow.appendChild(backLabel);
-    
-    // Create slot containers
-    const frontSlots = document.createElement('div');
-    frontSlots.style.display = 'flex';
-    frontSlots.style.gap = '10px';
-    frontRow.appendChild(frontSlots);
-    
-    const backSlots = document.createElement('div');
-    backSlots.style.display = 'flex';
-    backSlots.style.gap = '10px';
-    backRow.appendChild(backSlots);
-    
-    // Create slots for each position
-    for (let i = 0; i < 6; i++) {
-        const isBackRow = i >= 3;
-        const position = i;
-        const positionInRow = i % 3;
+    // Create cells for each position (0-8)
+    for (let pos = 0; pos < MAX_FIELD_SLOTS; pos++) {
+        const cell = document.createElement('div');
+        cell.style.border = '1px solid #ccc';
+        cell.style.borderRadius = '8px';
+        cell.style.display = 'flex';
+        cell.style.justifyContent = 'center';
+        cell.style.alignItems = 'center';
+        cell.style.position = 'relative';
         
-        const slot = document.createElement('div');
-        slot.className = 'position-slot';
-        slot.style.width = '120px';
-        slot.style.height = '120px';
-        slot.style.border = '2px dashed #ccc';
-        slot.style.borderRadius = '8px';
-        slot.style.display = 'flex';
-        slot.style.justifyContent = 'center';
-        slot.style.alignItems = 'center';
-        slot.style.cursor = 'pointer';
-        slot.style.position = 'relative';
+        // Add position label
+        const posLabel = document.createElement('div');
+        posLabel.textContent = `Pos ${pos}`;
+        posLabel.style.position = 'absolute';
+        posLabel.style.top = '5px';
+        posLabel.style.right = '5px';
+        posLabel.style.fontSize = '10px';
+        posLabel.style.color = '#666';
+        cell.appendChild(posLabel);
         
-        // Check if there's a card in this position already
-        const existingCard = player.field.find(c => c.position === position);
-        if (existingCard) {
-            // Show the existing card
-            const miniCard = document.createElement('div');
-            miniCard.className = 'mini-card';
-            miniCard.style.width = '100px';
-            miniCard.style.height = '100px';
-            miniCard.style.borderRadius = '5px';
-            miniCard.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.2)';
-            miniCard.style.backgroundSize = 'contain';
-            miniCard.style.backgroundPosition = 'center';
-            miniCard.style.backgroundRepeat = 'no-repeat';
-            miniCard.style.backgroundColor = '#f5f5f5';
+        // Check if the position is one of the first 6 (valid for summoning)
+        if (pos < 6) {
+            // Check if there's a card at this position already
+            const existingCard = player.field.find(c => c.position === pos);
             
-            if (existingCard.image) {
-                miniCard.style.backgroundImage = `url(${existingCard.image})`;
-            }
-            
-            const cardName = document.createElement('div');
-            cardName.textContent = existingCard.name;
-            cardName.style.position = 'absolute';
-            cardName.style.bottom = '5px';
-            cardName.style.width = '100%';
-            cardName.style.textAlign = 'center';
-            cardName.style.fontSize = '12px';
-            cardName.style.fontWeight = 'bold';
-            cardName.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-            cardName.style.color = 'white';
-            cardName.style.padding = '2px 0';
-            miniCard.appendChild(cardName);
-            
-            const replaceBadge = document.createElement('div');
-            replaceBadge.textContent = 'Replace';
-            replaceBadge.style.position = 'absolute';
-            replaceBadge.style.top = '5px';
-            replaceBadge.style.width = '100%';
-            replaceBadge.style.textAlign = 'center';
-            replaceBadge.style.fontSize = '12px';
-            replaceBadge.style.backgroundColor = 'rgba(255, 0, 0, 0.8)';
-            replaceBadge.style.color = 'white';
-            replaceBadge.style.padding = '2px 0';
-            miniCard.appendChild(replaceBadge);
-            
-            slot.appendChild(miniCard);
-        } else {
-            // Show empty slot
-            slot.textContent = 'Empty';
-            slot.style.color = '#aaa';
-            slot.style.fontStyle = 'italic';
-        }
-        
-        // When a slot is clicked, play the card at that position
-        slot.onclick = () => {
-            document.body.removeChild(modalOverlay);
-            if (isEvolution) {
-                // For evolution, we need to handle the apprentice and position
-                // First, move the card from hand to field with the selected position
-                card.position = position;
-                player.field.push(card);
-                player.hand.splice(handIndex, 1);
+            if (existingCard) {
+                // Position is occupied
+                cell.style.backgroundColor = 'rgba(255, 0, 0, 0.1)';
                 
-                // Then handle the apprentice
-                if (apprentice) {
-                    const apprenticeIndex = player.apprenticeZone.findIndex(c => c.id === apprentice.id);
-                    if (apprenticeIndex !== -1) {
-                        player.apprenticeZone.splice(apprenticeIndex, 1);
-                        player.trashPile.push(apprentice);
-                    }
-                }
+                const occupiedLabel = document.createElement('div');
+                occupiedLabel.textContent = existingCard.name;
+                occupiedLabel.style.fontSize = '12px';
+                occupiedLabel.style.color = '#666';
+                cell.appendChild(occupiedLabel);
                 
-                // Apply cost discount for evolution
-                const evolveCost = Math.max(0, card.cost - 1);
-                player.coins -= evolveCost;
+                const replaceLabel = document.createElement('div');
+                replaceLabel.textContent = 'Replace';
+                replaceLabel.style.color = '#f44336';
+                replaceLabel.style.fontSize = '10px';
+                replaceLabel.style.position = 'absolute';
+                replaceLabel.style.bottom = '5px';
+                replaceLabel.style.width = '100%';
+                replaceLabel.style.textAlign = 'center';
+                cell.appendChild(replaceLabel);
                 
-                // Log the evolution
-                const rowName = position < 3 ? 'front' : 'back';
-                const posInRow = position % 3 + 1;
-                logGameEvent(`${apprentice.name} evolved into ${card.name} in the ${rowName} row, position ${posInRow}!`);
-                logGameEvent(`Evolution cost: ${evolveCost} coins (discounted)`);
-                
-                updateUI();
+                // Can click to replace
+                cell.style.cursor = 'pointer';
+                cell.onclick = () => {
+                    document.body.removeChild(modalOverlay);
+                    playCard(playerKey, handIndex, pos, isEvolution, apprentice);
+                };
             } else {
-                // For regular play, use the normal playCard function with position
-                playCard(playerKey, handIndex, position);
+                // Position is open
+                cell.style.backgroundColor = 'rgba(76, 175, 80, 0.2)';
+                cell.style.border = '2px dashed #4caf50';
+                cell.style.cursor = 'pointer';
+                
+                const emptyLabel = document.createElement('div');
+                emptyLabel.textContent = 'Empty - Place Here';
+                emptyLabel.style.fontSize = '12px';
+                emptyLabel.style.color = '#4caf50';
+                cell.appendChild(emptyLabel);
+                
+                // Click to place
+                cell.onclick = () => {
+                    document.body.removeChild(modalOverlay);
+                    playCard(playerKey, handIndex, pos, isEvolution, apprentice);
+                };
             }
-        };
-        
-        // Add highlight on hover
-        slot.onmouseover = () => {
-            slot.style.backgroundColor = 'rgba(76, 175, 80, 0.1)';
-            slot.style.borderColor = '#4caf50';
-        };
-        
-        slot.onmouseout = () => {
-            slot.style.backgroundColor = '';
-            slot.style.borderColor = '#ccc';
-        };
-        
-        if (isBackRow) {
-            backSlots.appendChild(slot);
         } else {
-            frontSlots.appendChild(slot);
+            // Positions 6-8 are not valid for initial placement
+            cell.style.backgroundColor = 'rgba(0, 0, 0, 0.05)';
+            cell.style.opacity = '0.6';
+            
+            const invalidLabel = document.createElement('div');
+            invalidLabel.textContent = 'Movement Only';
+            invalidLabel.style.fontSize = '12px';
+            invalidLabel.style.color = '#999';
+            cell.appendChild(invalidLabel);
         }
+        
+        gridContainer.appendChild(cell);
     }
     
-    // Add battlefield to selection container
-    battlefieldGrid.appendChild(frontRow);
-    battlefieldGrid.appendChild(backRow);
-    selectionContainer.appendChild(battlefieldGrid);
+    selectionContainer.appendChild(gridContainer);
     
     // Add card info
     const cardInfo = document.createElement('div');
@@ -1722,7 +1783,7 @@ function showPositionSelectionUI(playerKey, handIndex, isEvolution = false, appr
         
         // Add range tip
         if (isMage) {
-            cardInfo.innerHTML += `<br><span style="color:#1976d2;">Tip: Mages can attack targets up to 2 positions away.</span>`;
+            cardInfo.innerHTML += `<br><span style="color:#1976d2;">Tip: Mages can attack targets up to 2 positions away (diagonally counts as 2 moves).</span>`;
         } else {
             cardInfo.innerHTML += `<br><span style="color:#d32f2f;">Tip: Melee units can only attack adjacent positions.</span>`;
         }
@@ -1870,7 +1931,7 @@ function showTargetSelectionUI(playerKey, attackerIndex, attacker, validTargets,
     attackerInfo.style.padding = '10px';
     attackerInfo.style.backgroundColor = '#f5f5f5';
     attackerInfo.style.borderRadius = '5px';
-    attackerInfo.innerHTML = `<strong>Attacker:</strong> ${attacker.name} (${attacker.cp} CP) | Range: ${attacker.attackRange}`;
+    attackerInfo.innerHTML = `<strong>Attacker:</strong> ${attacker.name} (${attacker.cp} CP) | Range: ${attacker.attackRange} | Position: ${attacker.position}`;
     selectionContainer.appendChild(attackerInfo);
     
     // Create targets container
@@ -1920,9 +1981,7 @@ function showTargetSelectionUI(playerKey, attackerIndex, attacker, validTargets,
         
         // Position indicator
         const positionLabel = document.createElement('div');
-        const rowName = target.position < 3 ? 'Front' : 'Back';
-        const posInRow = target.position % 3 + 1;
-        positionLabel.textContent = `${rowName} ${posInRow}`;
+        positionLabel.textContent = `Position ${target.position}`;
         positionLabel.style.position = 'absolute';
         positionLabel.style.top = '5px';
         positionLabel.style.right = '5px';
@@ -2030,50 +2089,7 @@ function processCreatureAttack(playerKey, attackerIndex, opponent, targetIndex) 
     const attacker = player.field[attackerIndex];
     const defender = gameState.players[opponent].field[targetIndex];
     
-    logGameEvent(`${player.name}'s ${attacker.name} (${attacker.cp} CP) attacks ${gameState.players[opponent].name}'s ${defender.name} (${defender.cp} CP)!`);
-    
-    // Apply Paladin Guard special ability if applicable
-    let defenderBonus = 0;
-    if (defender.name === 'Paladin Guard') {
-        defenderBonus = 1000;
-        logGameEvent(`${defender.name}'s ability reduces damage by 1000!`);
-    }
-    
-    // Compare CP to determine winner
-    if (attacker.cp > defender.cp + defenderBonus) {
-        logGameEvent(`${defender.name} was defeated in battle!`);
-        gameState.players[opponent].trashPile.push(defender);
-        gameState.players[opponent].field = gameState.players[opponent].field.filter(card => card.id !== defender.id);
-    } else {
-        logGameEvent(`${attacker.name}'s attack was blocked!`);
-        if (attacker.cp < defender.cp) {
-            logGameEvent(`${attacker.name} was defeated in battle!`);
-            player.trashPile.push(attacker);
-            player.field = player.field.filter(card => card.id !== attacker.id);
-        } else {
-            logGameEvent("Both creatures survived the battle!");
-        }
-    }
-    
-    updateUI();
-}
-
-// Process a direct attack on security
-function directAttack(playerKey, fieldIndex, attacker, opponent) {
-    const player = gameState.players[playerKey];
-    
-    // Mark card as having attacked
-    attacker.hasAttacked = true;
-    
-    // Deduct 1 coin for attacking (if player has coins)
-    if (player.coins >= 1) {
-        player.coins -= 1;
-        logGameEvent(`${player.name} spent 1 coin for attack action`);
-    } else {
-        logGameEvent(`${player.name} has no coins left but can still attack`);
-    }
-    
-    logGameEvent(`${player.name}'s ${attacker.name} (${attacker.cp} CP) attacks security directly!`);
+    logGameEvent(`${player.name}'s ${attacker.name} (Position ${attacker.position}) attacks security directly!`);
     
     // Attack goes through to security stack
     if (gameState.players[opponent].security.length > 0) {
@@ -2123,825 +2139,47 @@ function directAttack(playerKey, fieldIndex, attacker, opponent) {
         return;
     }
     
-    updateUI();
-}
-
-
-    // Show a blocking UI prompt for the player instead of using confirm()
-function showBlockingPrompt(opponent, attacker, callback) {
-    // Create a modal overlay
-    const modalOverlay = document.createElement('div');
-    modalOverlay.className = 'modal-overlay';
-    modalOverlay.style.position = 'fixed';
-    modalOverlay.style.top = '0';
-    modalOverlay.style.left = '0';
-    modalOverlay.style.width = '100%';
-    modalOverlay.style.height = '100%';
-    modalOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-    modalOverlay.style.display = 'flex';
-    modalOverlay.style.justifyContent = 'center';
-    modalOverlay.style.alignItems = 'center';
-    modalOverlay.style.zIndex = '1000';
-
-    // Create the prompt container
-    const promptContainer = document.createElement('div');
-    promptContainer.className = 'block-prompt';
-    promptContainer.style.backgroundColor = 'white';
-    promptContainer.style.padding = '20px';
-    promptContainer.style.borderRadius = '8px';
-    promptContainer.style.maxWidth = '400px';
-    promptContainer.style.textAlign = 'center';
-
-    // Add prompt text
-    const promptText = document.createElement('p');
-    promptText.textContent = `${gameState.players[opponent].name}, do you want to block ${attacker.name}'s attack with a creature?`;
-    promptContainer.appendChild(promptText);
-
-    // Add buttons
-    const buttonContainer = document.createElement('div');
-    buttonContainer.style.display = 'flex';
-    buttonContainer.style.justifyContent = 'center';
-    buttonContainer.style.gap = '10px';
-    buttonContainer.style.marginTop = '20px';
-
-    const yesButton = document.createElement('button');
-    yesButton.textContent = 'Yes, Block';
-    yesButton.className = 'phase-btn';
-    yesButton.style.padding = '10px 20px';
-
-    const noButton = document.createElement('button');
-    noButton.textContent = 'No, Allow Attack';
-    noButton.className = 'phase-btn';
-    noButton.style.padding = '10px 20px';
-
-    // Add click event listeners
-    yesButton.addEventListener('click', () => {
-        document.body.removeChild(modalOverlay);
-        callback(true);
-    });
-
-    noButton.addEventListener('click', () => {
-        document.body.removeChild(modalOverlay);
-        callback(false);
-    });
-
-    // Append buttons to container
-    buttonContainer.appendChild(yesButton);
-    buttonContainer.appendChild(noButton);
-    promptContainer.appendChild(buttonContainer);
-
-    // Append prompt to overlay
-    modalOverlay.appendChild(promptContainer);
-
-    // Add to document
-    document.body.appendChild(modalOverlay);
-}
-
-// AI decides whether to block and which card to use
-function aiDecideToBlock(playerKey, attacker) {
-    const player = gameState.players[playerKey];
-    let bestBlockerIndex = -1;
-    let bestBlockerValue = -Infinity;
-
-    // Go through potential blockers and find the best one
-    for (let i = 0; i < player.field.length; i++) {
-        const blocker = player.field[i];
-        if (blocker.type !== CARD_TYPES.CREATURE) continue;
-        
-        // Check if blocker is in range of attacker
-        if (!canAttackTarget(blocker, attacker)) continue;
-
-        // Calculate blocker's value (CP + any special abilities)
-        let blockerValue = blocker.cp;
-
-        // Paladin Guard gets bonus for blocking
-        if (blocker.name === 'Paladin Guard') {
-            blockerValue += 1000;
-        }
-
-        // If blocker can defeat attacker, consider it
-        if (blockerValue >= attacker.cp) {
-            // Choose the blocker with the lowest CP that can still win
-            // (to preserve stronger creatures for attacking)
-            if (bestBlockerIndex === -1 || blockerValue < bestBlockerValue) {
-                bestBlockerIndex = i;
-                bestBlockerValue = blockerValue;
-            }
-        }
+    updateUI();acker.name} (${attacker.cp} CP) at position ${attacker.position} attacks ${gameState.players[opponent].name}'s ${defender.name} (${defender.cp} CP) at position ${defender.position}!`);
+    
+    // Apply Paladin Guard special ability if applicable
+    let defenderBonus = 0;
+    if (defender.name === 'Paladin Guard') {
+        defenderBonus = 1000;
+        logGameEvent(`${defender.name}'s ability reduces damage by 1000!`);
     }
-
-    // Decide whether to block based on best blocker
-    if (bestBlockerIndex !== -1) {
-        return { block: true, blockerIndex: bestBlockerIndex };
-    }
-
-    return { block: false, blockerIndex: -1 };
-}
-
-// AI takes an action
-function aiTakeAction() {
-    if (gameState.currentPlayer !== 'playerB') return;
-
-    // Handle different game phases
-    switch (gameState.currentPhase) {
-        case GAME_PHASES.DRAW:
-            // Draw a card at start of turn
-            drawCard('playerB');
-
-            // Reset all creatures' attack eligibility
-            gameState.players.playerB.field.forEach(card => {
-                card.canAttack = true;
-                card.hasAttacked = false;
-            });
-
-            // Reset coins to 10 at the start of turn
-            gameState.players.playerB.coins = STARTING_COINS;
-            logGameEvent(`AI receives ${STARTING_COINS} coins for this turn`);
-
-            // Reset apprentice summon flag
-            gameState.players.playerB.hasPlayedApprentice = false;
-
-            // Move to Play phase
-            gameState.currentPhase = GAME_PHASES.PLAY;
-            logGameEvent("AI enters play phase");
-            updateUI();
-            setTimeout(aiTakeAction, 1000);
-            break;
-
-        case GAME_PHASES.PLAY:
-            // Try to play cards
-            let cardPlayed = false;
-
-            // First check if we should summon an apprentice
-            if (gameState.players.playerB.apprenticeZone.length < MAX_APPRENTICES &&
-                gameState.players.playerB.apprenticeDeck.length > 0 &&
-                !gameState.players.playerB.hasPlayedApprentice &&
-                Math.random() > 0.3) { // 70% chance to summon apprentice if possible
-                drawCard('playerB', 1, true);
-                cardPlayed = true;
-                setTimeout(aiTakeAction, 1000);
-                return;
-            }
-
-            // Try to evolve an apprentice if we have one and a class card
-            if (gameState.players.playerB.apprenticeZone.length > 0 &&
-                !cardPlayed &&
-                Math.random() > 0.2) { // 80% chance to try evolution
-
-                // Find a class card in hand
-                const classCards = gameState.players.playerB.hand.filter(card =>
-                    card.type === CARD_TYPES.CREATURE && 
-                    canPlayCard('playerB', card) &&
-                    countCreatures('playerB') < MAX_CREATURES
-                );
-
-                if (classCards.length > 0) {
-                    // Choose first apprentice and random class card
-                    const apprenticeIndex = 0;
-                    const classCard = classCards[Math.floor(Math.random() * classCards.length)];
-                    const handIndex = gameState.players.playerB.hand.findIndex(card => card.id === classCard.id);
-
-                    // Start evolution
-                    startEvolution('playerB', apprenticeIndex);
-
-                    // Complete evolution
-                    evolveApprentice('playerB', handIndex);
-
-                    cardPlayed = true;
-                    setTimeout(aiTakeAction, 1500);
-                    return;
-                }
-            }
-
-            // Decide whether to use the optional card draw (50% chance if affordable)
-            if (gameState.players.playerB.coins >= 1 && Math.random() > 0.5) {
-                optionalCardDraw('playerB');
-                setTimeout(aiTakeAction, 1000);
-                return;
-            }
-
-            // If no evolution, try to play creatures (highest CP first)
-            if (!cardPlayed) {
-                const playableCreatures = gameState.players.playerB.hand.filter(card =>
-                    card.type === CARD_TYPES.CREATURE && 
-                    canPlayCard('playerB', card) &&
-                    countCreatures('playerB') < MAX_CREATURES
-                );
-
-                if (playableCreatures.length > 0) {
-                    // Sort by highest CP
-                    playableCreatures.sort((a, b) => b.cp - a.cp);
-                    const cardToPlay = playableCreatures[0];
-                    const handIndex = gameState.players.playerB.hand.findIndex(card => card.id === cardToPlay.id);
-
-                    if (handIndex !== -1) {
-                        // For AI, find a good position to play the card
-                        let position = -1;
-                        
-                        // For mages, prefer back row
-                        if (cardToPlay.name.toLowerCase().includes('mage')) {
-                            // Check back row first (positions 3, 4, 5)
-                            for (let i = 3; i < 6; i++) {
-                                if (!gameState.players.playerB.field.some(c => c.position === i)) {
-                                    position = i;
-                                    break;
-                                }
-                            }
-                            
-                            // If back row is full, try front row
-                            if (position === -1) {
-                                for (let i = 0; i < 3; i++) {
-                                    if (!gameState.players.playerB.field.some(c => c.position === i)) {
-                                        position = i;
-                                        break;
-                                    }
-                                }
-                            }
-                        } else {
-                            // For non-mages, prefer front row
-                            // Check front row first (positions 0, 1, 2)
-                            for (let i = 0; i < 3; i++) {
-                                if (!gameState.players.playerB.field.some(c => c.position === i)) {
-                                    position = i;
-                                    break;
-                                }
-                            }
-                            
-                            // If front row is full, try back row
-                            if (position === -1) {
-                                for (let i = 3; i < 6; i++) {
-                                    if (!gameState.players.playerB.field.some(c => c.position === i)) {
-                                        position = i;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                        
-                        // If we found a position, play the card there
-                        if (position !== -1) {
-                            playCard('playerB', handIndex, position);
-                            cardPlayed = true;
-                            
-                            // Give the player a chance to see what happened before AI's next action
-                            setTimeout(aiTakeAction, 1000);
-                            return;
-                        } else {
-                            // If all positions are occupied, replace one
-                            // For simplicity, replace the first position
-                            playCard('playerB', handIndex, 0);
-                            cardPlayed = true;
-                            
-                            setTimeout(aiTakeAction, 1000);
-                            return;
-                        }
-                    }
-                }
-            }
-
-            // If no creatures to play, consider spells
-            if (!cardPlayed) {
-                const playableSpells = gameState.players.playerB.hand.filter(card =>
-                    card.type === CARD_TYPES.SPELL && canPlayCard('playerB', card)
-                );
-
-                if (playableSpells.length > 0) {
-                    // Sort by cost (highest first, for more impactful spells)
-                    playableSpells.sort((a, b) => b.cost - a.cost);
-                    const cardToPlay = playableSpells[0];
-                    const handIndex = gameState.players.playerB.hand.findIndex(card => card.id === cardToPlay.id);
-
-                    if (handIndex !== -1) {
-                        playCard('playerB', handIndex);
-                        cardPlayed = true;
-
-                        // Give the player a chance to see what happened before AI's next action
-                        setTimeout(aiTakeAction, 1000);
-                        return;
-                    }
-                }
-            }
-
-            // If no cards played, move to attack phase
-            if (!cardPlayed) {
-                gameState.currentPhase = GAME_PHASES.ATTACK;
-                logGameEvent("AI enters attack phase");
-                updateUI();
-                setTimeout(aiTakeAction, 1000);
-            }
-            break;
-
-        case GAME_PHASES.ATTACK:
-            // Try to attack with creatures
-            let attackMade = false;
-
-            // Get all attackable creatures (highest CP first)
-            const attackers = gameState.players.playerB.field
-                .map((card, index) => ({ card, index }))
-                .filter(item =>
-                    item.card.type === CARD_TYPES.CREATURE &&
-                    item.card.canAttack &&
-                    !item.card.hasAttacked
-                )
-                .sort((a, b) => b.card.cp - a.card.cp);
-
-            if (attackers.length > 0) {
-                // Attack with strongest creature first
-                const attacker = attackers[0];
-                attackWithCreature('playerB', attacker.index);
-                attackMade = true;
-
-                // Check if there are more creatures to attack with
-                const remainingAttackers = gameState.players.playerB.field
-                    .filter(card =>
-                        card.type === CARD_TYPES.CREATURE &&
-                        card.canAttack &&
-                        !card.hasAttacked
-                    );
-
-                if (remainingAttackers.length > 0) {
-                    // Continue attack phase
-                    setTimeout(aiTakeAction, 1500);
-                    return;
-                }
-            }
-
-            // If no attacks made or no more attackers, move to end phase
-            if (!attackMade || attackers.length === 0) {
-                gameState.currentPhase = GAME_PHASES.END;
-                logGameEvent("AI enters end phase");
-                updateUI();
-                setTimeout(aiTakeAction, 1000);
-            }
-            break;
-
-        case GAME_PHASES.END:
-            // End turn
-            endTurn();
-            break;
-    }
-}
-
-// End the current turn
-function endTurn() {
-    const currentPlayer = gameState.players[gameState.currentPlayer];
-    logGameEvent(`${currentPlayer.name}'s turn ends. Unspent coins: ${currentPlayer.coins}`);
-
-    // Unused coins are lost at end of turn
-    currentPlayer.coins = 0;
-
-    // Switch current player
-    gameState.currentPlayer = gameState.currentPlayer === 'playerA' ? 'playerB' : 'playerA';
-
-    // If starting a new turn, increment turn counter
-    if (gameState.currentPlayer === 'playerA') {
-        gameState.turn++;
-    }
-
-    // Reset to Draw phase
-    gameState.currentPhase = GAME_PHASES.DRAW;
-
-    // Cancel evolution mode if active
-    if (gameState.evolution.isEvolutionMode) {
-        cancelEvolution();
-    }
-
-    // Reset player state for new turn
-    const nextPlayer = gameState.players[gameState.currentPlayer];
-    nextPlayer.coins = STARTING_COINS;
-    nextPlayer.hasPlayedApprentice = false;
-
-    logGameEvent(`${nextPlayer.name}'s turn begins with ${STARTING_COINS} coins`);
-
-    // For player A, draw a card automatically at the start of turn
-    if (gameState.currentPlayer === 'playerA') {
-        drawCard('playerA');
-        
-        // Reset all creatures' attack eligibility
-        gameState.players.playerA.field.forEach(card => {
-            card.canAttack = true;
-            card.hasAttacked = false;
-        });
-    }
-
-    updateUI();
-}
-
-// Add phase control buttons to UI since they don't exist in the HTML
-function createPhaseControls() {
-    const controlsDiv = document.createElement('div');
-    controlsDiv.className = 'phase-controls';
-
-    const drawButton = document.createElement('button');
-    drawButton.textContent = 'Draw Phase';
-    drawButton.id = 'draw-phase-btn';
-    drawButton.className = 'phase-btn';
-
-    const playButton = document.createElement('button');
-    playButton.textContent = 'Play Phase';
-    playButton.id = 'play-phase-btn';
-    playButton.className = 'phase-btn';
-
-    const attackButton = document.createElement('button');
-    attackButton.textContent = 'Attack Phase';
-    attackButton.id = 'attack-phase-btn';
-    attackButton.className = 'phase-btn';
-
-    const endButton = document.createElement('button');
-    endButton.textContent = 'End Turn';
-    endButton.id = 'end-phase-btn';
-    endButton.className = 'phase-btn';
-
-    // Add optional draw button
-    const optionalDrawButton = document.createElement('button');
-    optionalDrawButton.textContent = 'Draw Card (1 coin)';
-    optionalDrawButton.id = 'optional-draw-btn';
-    optionalDrawButton.className = 'phase-btn optional-draw';
-    optionalDrawButton.style.backgroundColor = '#673ab7';
-    optionalDrawButton.style.display = 'none'; // Hidden by default
-    optionalDrawButton.addEventListener('click', () => optionalCardDraw('playerA'));
-
-    // Evolution cancel button (hidden by default)
-    const cancelEvolutionButton = document.createElement('button');
-    cancelEvolutionButton.textContent = 'Cancel Evolution';
-    cancelEvolutionButton.id = 'cancel-evolution-btn';
-    cancelEvolutionButton.className = 'phase-btn evolution-btn';
-    cancelEvolutionButton.style.display = 'none';
-    cancelEvolutionButton.style.backgroundColor = '#f44336';
-    cancelEvolutionButton.addEventListener('click', cancelEvolution);
-
-    controlsDiv.appendChild(drawButton);
-    controlsDiv.appendChild(playButton);
-    controlsDiv.appendChild(attackButton);
-    controlsDiv.appendChild(endButton);
-    controlsDiv.appendChild(optionalDrawButton);
-    controlsDiv.appendChild(cancelEvolutionButton);
-
-    // Find playerA area to insert controls
-    const playerArea = document.getElementById('playerA');
-    playerArea.insertBefore(controlsDiv, playerArea.firstChild);
-
-    // Add event listeners
-    drawButton.addEventListener('click', () => {
-        if (gameState.currentPlayer === 'playerA') {
-            gameState.currentPhase = GAME_PHASES.DRAW;
-            updateUI();
-        }
-    });
-
-    playButton.addEventListener('click', () => {
-        if (gameState.currentPlayer === 'playerA') {
-            gameState.currentPhase = GAME_PHASES.PLAY;
-            updateUI();
-        }
-    });
-
-    attackButton.addEventListener('click', () => {
-        if (gameState.currentPlayer === 'playerA') {
-            gameState.currentPhase = GAME_PHASES.ATTACK;
-            updateUI();
-        }
-    });
-
-    endButton.addEventListener('click', () => {
-        if (gameState.currentPlayer === 'playerA') {
-            // If in evolution mode, cancel it
-            if (gameState.evolution.isEvolutionMode) {
-                cancelEvolution();
-            }
-            endTurn();
-        }
-    });
-
-    // Store the buttons in domElements
-    domElements.cancelEvolutionBtn = cancelEvolutionButton;
-    domElements.optionalDrawBtn = optionalDrawButton;
-}
-
-// Add CSS styles for specific game elements
-function addGameStyles() {
-    const style = document.createElement('style');
-    style.textContent = `
-        /* Modal styles for blocking prompt */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.7);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-        
-        .block-prompt {
-            background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            max-width: 400px;
-            text-align: center;
-        }
-        
-        /* Active phase button */
-        .phase-btn.active {
-            background-color: #2a609c;
-            font-weight: bold;
-        }
-        
-        /* Apprentice zone styling */
-        .apprentice-zone {
-            background-color: rgba(255, 215, 0, 0.1);
-            border: 1px dashed gold;
-            padding: 10px;
-            margin: 10px 0;
-            min-height: 60px;
-            border-radius: 4px;
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            align-items: center;
-        }
-        
-        .apprentice-draw-btn {
-            padding: 8px 15px;
-            background-color: #673ab7;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-            margin: 5px;
-        }
-        
-        .apprentice-draw-btn:hover {
-            background-color: #5e35b1;
-        }
-        
-        .card.evolution-ready {
-            border: 2px solid gold;
-            box-shadow: 0 0 10px gold;
-            cursor: pointer;
-        }
-        
-        /* Field limit indicator */
-        .field-limit {
-            margin-bottom: 5px;
-            color: #666;
-            font-size: 12px;
-        }
-        
-        /* Optional draw button */
-        .optional-draw {
-            background-color: #673ab7;
-            margin-left: 20px;
-        }
-        
-        .optional-draw:hover {
-            background-color: #5e35b1;
-        }
-        
-        /* Range indicator for cards */
-        .range-indicator {
-            position: absolute;
-            bottom: 25px;
-            right: 5px;
-            font-size: 10px;
-            padding: 2px 4px;
-            border-radius: 3px;
-            color: white;
-        }
-        
-        /* Battlefield grid layout */
-        .battlefield-grid {
-            display: flex;
-            flex-direction: column;
-            width: 100%;
-            gap: 15px;
-            margin-top: 10px;
-        }
-        
-        .battlefield-row {
-            display: flex;
-            width: 100%;
-        }
-        
-        .row-label {
-            width: 60px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            color: #555;
-            background-color: rgba(0, 0, 0, 0.05);
-            border-radius: 4px;
-            padding: 5px;
-        }
-        
-        .row-cards {
-            flex: 1;
-            display: flex;
-            justify-content: space-around;
-        }
-        
-        .card-slot {
-            width: 165px;
-            height: 110px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background-color: rgba(0, 0, 0, 0.02);
-            border-radius: 8px;
-            border: 1px dashed #ccc;
-        }
-        
-        .front-row .row-label {
-            background-color: rgba(255, 0, 0, 0.1);
-            color: #d32f2f;
-            border-left: 3px solid #d32f2f;
-        }
-        
-        .back-row .row-label {
-            background-color: rgba(0, 0, 255, 0.1);
-            color: #1976d2;
-            border-left: 3px solid #1976d2;
-        }
-        
-        /* Make cards more responsive */
-        @media (max-width: 768px) {
-            .card {
-                width: 120px;
-                height: 77px;
-            }
-            
-            .card .stats {
-                font-size: 8px;
-            }
-            
-            .card .name, .card .cost, .card .cp {
-                font-size: 10px;
-            }
-        }
-    `;
-    document.head.appendChild(style);
-}
-
-// Create apprentice zones
-function createApprenticeZones() {
-    // Create Player A's apprentice zone
-    const playerAApprenticeZone = document.createElement('div');
-    playerAApprenticeZone.id = 'playerAApprentice';
-    playerAApprenticeZone.className = 'apprentice-zone';
-    playerAApprenticeZone.innerHTML = '<h3>Apprentice Zone</h3>';
-
-    // Create Player B's apprentice zone
-    const playerBApprenticeZone = document.createElement('div');
-    playerBApprenticeZone.id = 'playerBApprentice';
-    playerBApprenticeZone.className = 'apprentice-zone';
-    playerBApprenticeZone.innerHTML = '<h3>Apprentice Zone</h3>';
-
-    // Add to player areas
-    const playerAArea = document.getElementById('playerA');
-    const playerBArea = document.getElementById('playerB');
-
-    // Insert after security for player A
-    const playerASecurity = document.getElementById('playerASecurity');
-    playerAArea.insertBefore(playerAApprenticeZone, playerASecurity.nextSibling);
-
-    // Insert before field for player B
-    const playerBField = document.getElementById('playerBField');
-    playerBArea.insertBefore(playerBApprenticeZone, playerBField);
-}
-
-// Replace memory gauge with coin display
-function createCoinDisplay() {
-    // Create coin display element
-    const coinDisplay = document.createElement('div');
-    coinDisplay.id = 'coinDisplay';
-    coinDisplay.className = 'coin-display';
-    coinDisplay.style.fontSize = '18px';
-    coinDisplay.style.margin = '20px 0';
-    coinDisplay.style.fontWeight = 'bold';
-    coinDisplay.style.padding = '10px 20px';
-    coinDisplay.style.backgroundColor = '#333';
-    coinDisplay.style.color = 'white';
-    coinDisplay.style.borderRadius = '8px';
-    coinDisplay.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.2)';
-    coinDisplay.textContent = 'Player A\'s Coins: 10 | Turn: 1 | Phase: draw';
-
-    // Replace memory gauge
-    const memoryGauge = document.getElementById('memoryGauge');
-    if (memoryGauge) {
-        memoryGauge.parentNode.replaceChild(coinDisplay, memoryGauge);
+    
+    // Compare CP to determine winner
+    if (attacker.cp > defender.cp + defenderBonus) {
+        logGameEvent(`${defender.name} was defeated in battle!`);
+        gameState.players[opponent].trashPile.push(defender);
+        gameState.players[opponent].field = gameState.players[opponent].field.filter(card => card.id !== defender.id);
     } else {
-        // If memory gauge doesn't exist yet, add to game board
-        const gameBoard = document.querySelector('.game-board');
-        if (gameBoard) {
-            const playerBArea = document.getElementById('playerB');
-            gameBoard.insertBefore(coinDisplay, playerBArea.nextSibling);
+        logGameEvent(`${attacker.name}'s attack was blocked!`);
+        if (attacker.cp < defender.cp) {
+            logGameEvent(`${attacker.name} was defeated in battle!`);
+            player.trashPile.push(attacker);
+            player.field = player.field.filter(card => card.id !== attacker.id);
+        } else {
+            logGameEvent("Both creatures survived the battle!");
         }
     }
-
-    // Update domElements reference
-    domElements.coinDisplay = coinDisplay;
-}
-
-// Initialize game
-function initializeGame() {
-    // Reset game state
-    gameState.currentPhase = GAME_PHASES.DRAW;
-    gameState.turn = 1;
-    gameState.gameLog = [];
-    gameState.evolution.isEvolutionMode = false;
-    gameState.evolution.sourceCard = null;
-    gameState.evolution.targetZone = null;
-
-    // Initialize player decks using deck builder
-    initializePlayerDeck('playerA');
-    initializePlayerApprenticeDeck('playerA');
-
-    // AI always uses default decks for now
-    gameState.players.playerB.deck = initializeDeck();
-    shuffle(gameState.players.playerB.deck);
-
-    gameState.players.playerB.apprenticeDeck = initializeApprenticeDeck();
-    shuffle(gameState.players.playerB.apprenticeDeck);
-
-    // Clear player states
-    for (const playerKey in gameState.players) {
-        const player = gameState.players[playerKey];
-        player.hand = [];
-        player.field = [];
-        player.security = [];
-        player.trashPile = [];
-        player.apprenticeZone = [];
-        player.coins = STARTING_COINS;
-        player.hasPlayedApprentice = false;
-    }
-
-    // Set up security cards
-    gameState.players.playerA.security = gameState.players.playerA.deck.splice(0, 5);
-    gameState.players.playerB.security = gameState.players.playerB.deck.splice(0, 5);
-
-    // Draw initial hands
-    gameState.players.playerA.hand = gameState.players.playerA.deck.splice(0, 5);
-    gameState.players.playerB.hand = gameState.players.playerB.deck.splice(0, 5);
-
-    // Set first player
-    gameState.currentPlayer = 'playerA';
-
-    logGameEvent(`Game initialized! Player A goes first with ${STARTING_COINS} coins.`);
+    
     updateUI();
 }
 
-// Initialize the game on page load
-document.addEventListener('DOMContentLoaded', () => {
-    // Create apprentice zones
-    createApprenticeZones();
-
-    // Replace memory gauge with coin display
-    createCoinDisplay();
-
-    // Initialize DOM elements references
-    initializeDomElements();
-
-    // Create phase controls and add styles
-    createPhaseControls();
-    addGameStyles();
-
-    // Initialize deck builder
-    deckBuilder.initialize();
-
-    // Initialize game
-    initializeGame();
-});
-
-// Export game functions for testing (only in Node.js environment)
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = {
-        initializeGame,
-        updateUI,
-        drawCard,
-        playCard,
-        attackWithCreature,
-        endTurn,
-        aiTakeAction,
-        gameState,
-        GAME_PHASES,
-        CARD_TYPES,
-        deckBuilder,
-        initializePlayerDeck,
-        initializePlayerApprenticeDeck,
-        optionalCardDraw,
-        countCreatures,
-        MAX_CREATURES,
-        MAX_APPRENTICES,
-        STARTING_COINS,
-        canAttackTarget,
-        showPositionSelectionUI,
-        showTargetSelectionUI,
-        directAttack,
-        processCreatureAttack
-    };
-}
+// Process a direct attack on security
+function directAttack(playerKey, fieldIndex, attacker, opponent) {
+    const player = gameState.players[playerKey];
+    
+    // Mark card as having attacked
+    attacker.hasAttacked = true;
+    
+    // Deduct 1 coin for attacking (if player has coins)
+    if (player.coins >= 1) {
+        player.coins -= 1;
+        logGameEvent(`${player.name} spent 1 coin for attack action`);
+    } else {
+        logGameEvent(`${player.name} has no coins left but can still attack`);
+    }
+    
+    logGameEvent(`${player.name}'s ${att
