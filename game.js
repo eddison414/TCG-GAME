@@ -2234,3 +2234,189 @@ function directAttack(playerKey, fieldIndex, attacker, opponent) {
     
     updateUI();
 }
+// AI Turn Decision-Making Function
+function aiTakeAction() {
+    const aiPlayer = gameState.players.playerB;
+    
+    switch (gameState.currentPhase) {
+        case GAME_PHASES.DRAW:
+            // AI always draws a card during draw phase
+            drawCard('playerB', 1);
+            advancePhase('playerB');
+            break;
+        
+        case GAME_PHASES.MOVEMENT:
+            // AI attempts to move creatures strategically
+            aiPlayer.field.forEach((card, index) => {
+                const validPositions = getValidMovementPositions('playerB', index);
+                if (validPositions.length > 0 && aiPlayer.coins >= MOVEMENT_COST) {
+                    // Simple strategy: move to first valid position
+                    moveCreature('playerB', index, validPositions[0]);
+                }
+            });
+            advancePhase('playerB');
+            break;
+        
+        case GAME_PHASES.PLAY:
+            // AI tries to play cards from hand
+            aiPlayer.hand.forEach((card, index) => {
+                if (canPlayCard('playerB', card)) {
+                    // For creatures, find an empty position
+                    if (card.type === CARD_TYPES.CREATURE && countCreatures('playerB') < MAX_CREATURES) {
+                        let position = -1;
+                        for (let i = 0; i < 6; i++) {
+                            if (!aiPlayer.field.some(c => c.position === i)) {
+                                position = i;
+                                break;
+                            }
+                        }
+                        playCard('playerB', index, position);
+                    }
+                    // TODO: Add more sophisticated spell card play logic
+                }
+            });
+            advancePhase('playerB');
+            break;
+        
+        case GAME_PHASES.ATTACK:
+            // AI tries to attack with available creatures
+            aiPlayer.field.forEach((card, index) => {
+                if (card.type === CARD_TYPES.CREATURE && !card.hasAttacked && card.canAttack) {
+                    attackWithCreature('playerB', index);
+                }
+            });
+            advancePhase('playerB');
+            break;
+        
+        case GAME_PHASES.END:
+            advancePhase('playerB');
+            break;
+    }
+}
+
+// Advance game phase
+function advancePhase(playerKey) {
+    const currentPhases = Object.values(GAME_PHASES);
+    const currentPhaseIndex = currentPhases.indexOf(gameState.currentPhase);
+    
+    // Move to next phase
+    if (currentPhaseIndex < currentPhases.length - 1) {
+        gameState.currentPhase = currentPhases[currentPhaseIndex + 1];
+    } else {
+        // End of turn, switch players and reset
+        gameState.currentPlayer = playerKey === 'playerA' ? 'playerB' : 'playerA';
+        gameState.turn++;
+        
+        // Reset turn-specific flags
+        gameState.players.playerA.hasPlayedApprentice = false;
+        gameState.players.playerB.hasPlayedApprentice = false;
+        gameState.players.playerA.hasMoved = [];
+        gameState.players.playerB.hasMoved = [];
+        
+        // Reset creature attack and movement states
+        ['playerA', 'playerB'].forEach(player => {
+            gameState.players[player].field.forEach(card => {
+                card.hasAttacked = false;
+                card.canAttack = true;
+            });
+        });
+        
+        // Start next turn with draw phase
+        gameState.currentPhase = GAME_PHASES.DRAW;
+        
+        // Give coins to current player
+        gameState.players[gameState.currentPlayer].coins += 1;
+    }
+    
+    updateUI();
+}
+
+// Initialize the game
+function initializeGame() {
+    // Reset game state
+    gameState.currentPhase = GAME_PHASES.DRAW;
+    gameState.currentPlayer = 'playerA';
+    gameState.turn = 1;
+    gameState.gameLog = [];
+    gameState.evolution = {
+        isEvolutionMode: false,
+        sourceCard: null,
+        targetZone: null
+    };
+
+    // Reset both players
+    ['playerA', 'playerB'].forEach(playerKey => {
+        const player = gameState.players[playerKey];
+        
+        // Reset player state
+        player.coins = STARTING_COINS;
+        player.deck = [];
+        player.hand = [];
+        player.field = [];
+        player.security = [];
+        player.trashPile = [];
+        player.apprenticeDeck = [];
+        player.apprenticeZone = [];
+        player.hasPlayedApprentice = false;
+        player.hasMoved = [];
+
+        // Initialize decks
+        initializePlayerDeck(playerKey);
+        initializePlayerApprenticeDeck(playerKey);
+
+        // Draw initial hand (typically 5 cards)
+        for (let i = 0; i < 5; i++) {
+            drawCard(playerKey, 1);
+        }
+
+        // Set up initial security stack (5 cards)
+        for (let i = 0; i < 5; i++) {
+            if (player.deck.length > 0) {
+                const securityCard = player.deck.shift();
+                player.security.push(securityCard);
+            }
+        }
+    });
+
+    // Update UI to reflect initial game state
+    updateUI();
+}
+
+// Event listeners for game controls (to be added to HTML)
+function setupGameControls() {
+    // Phase buttons
+    ['draw', 'movement', 'play', 'attack', 'end'].forEach(phase => {
+        const btn = document.getElementById(`${phase}-phase-btn`);
+        if (btn) {
+            btn.addEventListener('click', () => {
+                // Validate phase transition for human player
+                if (gameState.currentPlayer === 'playerA') {
+                    advancePhase('playerA');
+                }
+            });
+        }
+    });
+
+    // Optional draw button
+    const optionalDrawBtn = document.getElementById('optional-draw-btn');
+    if (optionalDrawBtn) {
+        optionalDrawBtn.addEventListener('click', () => {
+            optionalCardDraw('playerA');
+        });
+    }
+
+    // Cancel evolution button
+    const cancelEvolutionBtn = document.getElementById('cancel-evolution-btn');
+    if (cancelEvolutionBtn) {
+        cancelEvolutionBtn.addEventListener('click', cancelEvolution);
+    }
+}
+
+// Initialize game when page loads
+document.addEventListener('DOMContentLoaded', () => {
+    // Initialize deck builder and game state
+    deckBuilder.initialize();
+    initializeDomElements();
+    setupGameControls();
+    initializeGame();
+});
