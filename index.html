@@ -61,13 +61,27 @@
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
         }
         
-        .hand, .field, .security {
+        .hand, .field, .security, .apprentice-zone {
             border: 1px dashed #000;
             padding: 10px;
             margin: 5px 0;
             min-height: 60px;
             border-radius: 4px;
             background-color: rgba(0, 0, 0, 0.03);
+        }
+        
+        /* Apprentice zone styling */
+        .apprentice-zone {
+            background-color: rgba(255, 215, 0, 0.1);
+            border: 1px dashed gold;
+            padding: 10px;
+            margin: 10px 0;
+            min-height: 60px;
+            border-radius: 4px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
         }
         
         /* Battlefield grid layout */
@@ -358,6 +372,45 @@
             font-weight: bold;
         }
         
+        /* Evolution styles */
+        .evolution-selection {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .evolve-button {
+            background-color: rgba(255, 215, 0, 0.8) !important;
+            color: black !important;
+            z-index: 10;
+            transition: all 0.2s ease;
+        }
+
+        .evolve-button:hover {
+            background-color: gold !important;
+            box-shadow: 0 0 5px gold;
+        }
+
+        /* Class type indicators */
+        .card .class-type {
+            z-index: 10;
+        }
+
+        /* EXP stat styling */
+        .card .stats .exp {
+            color: #ffcc00;
+            font-weight: bold;
+        }
+
+        /* Advanced class styling */
+        .card.advanced {
+            border: 2px solid gold;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+        }
+        
         /* Make cards more responsive */
         @media (max-width: 768px) {
             .card {
@@ -387,14 +440,25 @@
             <div class="player-area" id="playerB">
                 <h2>Player B (AI)</h2>
                 <div class="hand" id="playerBHand"></div>
+                <div class="apprentice-zone" id="playerBApprentice"></div>
                 <div class="field" id="playerBField"></div>
                 <div class="security" id="playerBSecurity">Security: 5</div>
             </div>
             <div class="coin-display" id="coinDisplay">Player A's Coins: 10 | Turn: 1 | Phase: Draw</div>
+            <div class="phase-controls">
+                <button id="draw-phase-btn" class="phase-btn">Draw</button>
+                <button id="movement-phase-btn" class="phase-btn">Movement</button>
+                <button id="play-phase-btn" class="phase-btn">Play</button>
+                <button id="attack-phase-btn" class="phase-btn">Attack</button>
+                <button id="end-phase-btn" class="phase-btn">End</button>
+                <button id="optional-draw-btn" class="phase-btn optional-draw" style="display: none;">Draw Card (1 Coin)</button>
+                <button id="cancel-evolution-btn" class="phase-btn" style="display: none; background-color: #f44336;">Cancel Evolution</button>
+            </div>
             <div class="player-area" id="playerA">
                 <h2>Player A</h2>
                 <div class="security" id="playerASecurity">Security: 5</div>
                 <div class="field" id="playerAField"></div>
+                <div class="apprentice-zone" id="playerAApprentice"></div>
                 <div class="hand" id="playerAHand"></div>
             </div>
         </div>

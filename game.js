@@ -5,6 +5,19 @@ const CARD_TYPES = {
     APPRENTICE: 'apprentice'  // Card type for apprentice cards
 };
 
+// Define class types
+const CLASS_TYPES = {
+    BASIC: 'basic',
+    ADVANCED: 'advanced'
+};
+
+// Define evolution paths
+const EVOLUTION_PATHS = {
+    'warrior': ['paladin', 'knight'],
+    'mage': ['wizard', 'priest'],
+    'rogue': ['assassin', 'archer']
+};
+
 // Updated game phases to include movement
 const GAME_PHASES = {
     DRAW: 'draw',
@@ -76,14 +89,140 @@ const deckBuilder = {
         // Use the exact filenames from the images folder
         const imagePath = 'images/';
 
-        // Populate card database with available templates
+        // Populate card database with updated templates including EXP stat
         this.cardDatabase = [
-            { templateId: 'warrior', name: 'Warrior', type: CARD_TYPES.CREATURE, cost: 3, cp: 5000, stats: { STR: 5, DEX: 3, VIT: 4, INT: 2 }, image: imagePath + 'warrior_grunt.png' },
-            { templateId: 'mage', name: 'Mage Apprentice', type: CARD_TYPES.CREATURE, cost: 2, cp: 3000, stats: { STR: 2, DEX: 3, VIT: 2, INT: 5 }, image: imagePath + 'mage_apprentice.png', effect: 'Draw 1 card when played' },
-            { templateId: 'rogue', name: 'Rogue Scout', type: CARD_TYPES.CREATURE, cost: 2, cp: 4000, stats: { STR: 3, DEX: 5, VIT: 2, INT: 3 }, image: imagePath + 'rogue_scout.png', ability: 'Stealth' },
-            { templateId: 'paladin', name: 'Paladin Guard', type: CARD_TYPES.CREATURE, cost: 4, cp: 4000, stats: { STR: 4, DEX: 2, VIT: 5, INT: 3 }, image: imagePath + 'paladin_guard.png', ability: '+1000 CP when blocking' },
-            { templateId: 'fireball', name: 'Fireball', type: CARD_TYPES.SPELL, cost: 3, stats: { STR: 0, DEX: 0, VIT: 0, INT: 5 }, image: imagePath + 'card_back.png', effect: 'Deal 3000 damage to target creature', securityEffect: 'Deal 2000 damage to the attacking creature' },
-            { templateId: 'healing', name: 'Healing Wave', type: CARD_TYPES.SPELL, cost: 2, stats: { STR: 0, DEX: 0, VIT: 5, INT: 3 }, image: imagePath + 'card_back.png', effect: 'Restore 2000 CP to target creature', securityEffect: 'Add this card to your hand' }
+            // Basic Classes
+            { 
+                templateId: 'warrior', 
+                name: 'Warrior', 
+                type: CARD_TYPES.CREATURE, 
+                classType: CLASS_TYPES.BASIC,
+                cost: 3, 
+                cp: 5000, 
+                stats: { STR: 25, VIT: 20, DEX: 15, INT: 10, EXP: 30 }, 
+                image: imagePath + 'warrior_grunt.png',
+                possibleEvolutions: ['paladin', 'knight']
+            },
+            { 
+                templateId: 'mage', 
+                name: 'Mage', 
+                type: CARD_TYPES.CREATURE, 
+                classType: CLASS_TYPES.BASIC,
+                cost: 2, 
+                cp: 3000, 
+                stats: { STR: 5, VIT: 10, DEX: 15, INT: 25, EXP: 45 }, 
+                image: imagePath + 'mage_apprentice.png',
+                effect: 'Draw 1 card when played',
+                possibleEvolutions: ['wizard', 'priest']
+            },
+            { 
+                templateId: 'rogue', 
+                name: 'Rogue Scout', 
+                type: CARD_TYPES.CREATURE, 
+                classType: CLASS_TYPES.BASIC,
+                cost: 2, 
+                cp: 4000, 
+                stats: { STR: 10, VIT: 15, DEX: 25, INT: 20, EXP: 30 }, 
+                image: imagePath + 'rogue_scout.png',
+                ability: 'Stealth',
+                possibleEvolutions: ['assassin', 'archer']
+            },
+            
+            // Advanced Classes
+            { 
+                templateId: 'paladin', 
+                name: 'Paladin Guard', 
+                type: CARD_TYPES.CREATURE, 
+                classType: CLASS_TYPES.ADVANCED,
+                cost: 4, 
+                cp: 8000, 
+                stats: { STR: 35, VIT: 30, DEX: 25, INT: 40, EXP: 70 }, 
+                image: imagePath + 'paladin_guard.png',
+                ability: '+1000 CP when blocking',
+                evolvedFrom: 'warrior'
+            },
+            {
+                templateId: 'knight',
+                name: 'Knight',
+                type: CARD_TYPES.CREATURE,
+                classType: CLASS_TYPES.ADVANCED,
+                cost: 5,
+                cp: 8500,
+                stats: { STR: 40, VIT: 35, DEX: 35, INT: 20, EXP: 70 },
+                image: imagePath + 'knight.png',
+                ability: 'First Strike',
+                evolvedFrom: 'warrior'
+            },
+            {
+                templateId: 'wizard',
+                name: 'Wizard',
+                type: CARD_TYPES.CREATURE,
+                classType: CLASS_TYPES.ADVANCED,
+                cost: 4,
+                cp: 7000,
+                stats: { STR: 10, VIT: 25, DEX: 35, INT: 40, EXP: 90 },
+                image: imagePath + 'wizard.png',
+                ability: 'Spell Mastery: Spells cost 1 less',
+                evolvedFrom: 'mage'
+            },
+            {
+                templateId: 'priest',
+                name: 'Priest',
+                type: CARD_TYPES.CREATURE,
+                classType: CLASS_TYPES.ADVANCED,
+                cost: 4,
+                cp: 6500,
+                stats: { STR: 15, VIT: 40, DEX: 20, INT: 35, EXP: 90 },
+                image: imagePath + 'priest.png',
+                ability: 'Healing: Restore 1000 CP to a creature each turn',
+                evolvedFrom: 'mage'
+            },
+            {
+                templateId: 'assassin',
+                name: 'Assassin',
+                type: CARD_TYPES.CREATURE,
+                classType: CLASS_TYPES.ADVANCED,
+                cost: 4,
+                cp: 7500,
+                stats: { STR: 25, VIT: 30, DEX: 40, INT: 35, EXP: 70 },
+                image: imagePath + 'assassin.png',
+                ability: 'Backstab: Deal +2000 damage when attacking from position 6-8',
+                evolvedFrom: 'rogue'
+            },
+            {
+                templateId: 'archer',
+                name: 'Archer',
+                type: CARD_TYPES.CREATURE,
+                classType: CLASS_TYPES.ADVANCED,
+                cost: 4,
+                cp: 7000,
+                stats: { STR: 20, VIT: 35, DEX: 35, INT: 40, EXP: 70 },
+                image: imagePath + 'archer.png',
+                ability: 'Long Range: Attack range increased to 3',
+                evolvedFrom: 'rogue'
+            },
+            
+            // Spell cards with EXP added
+            { 
+                templateId: 'fireball', 
+                name: 'Fireball', 
+                type: CARD_TYPES.SPELL, 
+                cost: 3, 
+                stats: { STR: 0, VIT: 0, DEX: 0, INT: 5, EXP: 0 }, 
+                image: imagePath + 'card_back.png', 
+                effect: 'Deal 3000 damage to target creature', 
+                securityEffect: 'Deal 2000 damage to the attacking creature' 
+            },
+            { 
+                templateId: 'healing', 
+                name: 'Healing Wave', 
+                type: CARD_TYPES.SPELL, 
+                cost: 2, 
+                stats: { STR: 0, VIT: 5, DEX: 0, INT: 3, EXP: 0 }, 
+                image: imagePath + 'card_back.png', 
+                effect: 'Restore 2000 CP to target creature', 
+                securityEffect: 'Add this card to your hand' 
+            }
         ];
 
         // Initialize apprentice cards (with Anastasia as the first one)
@@ -93,7 +232,7 @@ const deckBuilder = {
                 name: 'Apprentice Anastasia',
                 type: CARD_TYPES.APPRENTICE,
                 cost: 1,
-                stats: { STR: 1, DEX: 1, VIT: 1, INT: 3 },
+                stats: { STR: 1, VIT: 1, DEX: 1, INT: 3, EXP: 10 },
                 image: imagePath + 'apprentice_anastasia.png',
                 passive: { stat: 'INT', value: 30 },
                 effect: 'Grants +30 INT to evolved form'
@@ -103,7 +242,7 @@ const deckBuilder = {
                 name: 'Apprentice Brendan',
                 type: CARD_TYPES.APPRENTICE,
                 cost: 1,
-                stats: { STR: 2, DEX: 3, VIT: 1, INT: 4 },
+                stats: { STR: 2, VIT: 1, DEX: 3, INT: 4, EXP: 10 },
                 image: imagePath + 'apprentice_brendan.png',
                 passive: { stat: 'DEX', value: 25 },
                 effect: 'Grants +25 DEX to evolved form'
@@ -126,22 +265,22 @@ const deckBuilder = {
 
         // Add some of each card type
         for (let i = 0; i < 8; i++) {
-            defaultDeck.push(this.cardDatabase[0]); // Warriors
+            defaultDeck.push(this.cardDatabase.find(card => card.templateId === 'warrior'));
         }
         for (let i = 0; i < 8; i++) {
-            defaultDeck.push(this.cardDatabase[1]); // Mages
+            defaultDeck.push(this.cardDatabase.find(card => card.templateId === 'mage'));
         }
         for (let i = 0; i < 6; i++) {
-            defaultDeck.push(this.cardDatabase[2]); // Rogues
+            defaultDeck.push(this.cardDatabase.find(card => card.templateId === 'rogue'));
         }
         for (let i = 0; i < 6; i++) {
-            defaultDeck.push(this.cardDatabase[3]); // Paladins
+            defaultDeck.push(this.cardDatabase.find(card => card.templateId === 'paladin'));
         }
         for (let i = 0; i < 4; i++) {
-            defaultDeck.push(this.cardDatabase[4]); // Fireballs
+            defaultDeck.push(this.cardDatabase.find(card => card.templateId === 'fireball'));
         }
         for (let i = 0; i < 4; i++) {
-            defaultDeck.push(this.cardDatabase[5]); // Healing Waves
+            defaultDeck.push(this.cardDatabase.find(card => card.templateId === 'healing'));
         }
 
         return defaultDeck;
@@ -206,13 +345,308 @@ function createCardFromTemplate(templateId, isApprentice = false) {
     card.appliedPassives = [];  // To track which passives have been applied
     card.position = -1;  // Position on the field (-1 means not on field)
 
+    // Make sure EXP exists in stats
+    if (!card.stats.EXP && card.stats.EXP !== 0) {
+        card.stats.EXP = 0;
+    }
+
+    // Set class type if not defined
+    if (!card.classType) {
+        card.classType = CLASS_TYPES.BASIC;
+    }
+
     // Determine attack range based on card type
     if (card.type === CARD_TYPES.CREATURE) {
-        // Mages have range 2, all other creatures have range 1
-        card.attackRange = card.name.toLowerCase().includes('mage') ? 2 : 1;
+        // Special cases for different classes
+        if (card.templateId === 'archer') {
+            card.attackRange = 3; // Archers have long range
+        } else if (card.name.toLowerCase().includes('mage') || card.name.toLowerCase().includes('wizard')) {
+            card.attackRange = 2; // Mages and Wizards have medium range
+        } else {
+            card.attackRange = 1; // All other creatures have melee range
+        }
     }
 
     return card;
+}
+
+// Helper function to calculate CP from stats
+function calculateCP(stats) {
+    // Formula: STR*100 + VIT*80 + DEX*100 + INT*120 + EXP*20
+    return (
+        stats.STR * 100 +
+        stats.VIT * 80 +
+        stats.DEX * 100 +
+        stats.INT * 120 +
+        (stats.EXP || 0) * 20
+    );
+}
+
+// Implement the stat distribution algorithm from the documentation
+function distributeStats(className, isAdvanced = false) {
+    // Find the template card in the database
+    const templateCard = deckBuilder.cardDatabase.find(card => card.templateId === className);
+    if (!templateCard) {
+        console.error(`Class ${className} not found in database!`);
+        return null;
+    }
+    
+    // Clone the base stats
+    const stats = JSON.parse(JSON.stringify(templateCard.stats));
+    
+    // Determine total points based on class level
+    const totalPoints = isAdvanced ? 200 : 100;
+    
+    // Calculate remaining random points (50% of total)
+    let remainingPoints = totalPoints / 2;
+    
+    // Track the total base stats for verification
+    const totalBaseStats = Object.values(stats).reduce((sum, value) => sum + value, 0);
+    
+    // If base stats don't match expected total, adjust them
+    if (totalBaseStats !== totalPoints / 2) {
+        const adjustFactor = (totalPoints / 2) / totalBaseStats;
+        Object.keys(stats).forEach(stat => {
+            stats[stat] = Math.round(stats[stat] * adjustFactor);
+        });
+    }
+    
+    // Distribute remaining points randomly
+    while (remainingPoints > 0) {
+        // Choose a random stat
+        const statKeys = Object.keys(stats);
+        const randomStat = statKeys[Math.floor(Math.random() * statKeys.length)];
+        
+        // Calculate random points to add (between 5 and 15)
+        let pointsToAdd = Math.min(5 + Math.floor(Math.random() * 11), remainingPoints);
+        
+        // Round to nearest 5
+        pointsToAdd = Math.round(pointsToAdd / 5) * 5;
+        if (pointsToAdd < 5) pointsToAdd = 5;
+        
+        // Add points to the stat if there are enough remaining
+        if (remainingPoints >= pointsToAdd) {
+            stats[randomStat] += pointsToAdd;
+            remainingPoints -= pointsToAdd;
+        } else {
+            // Add remaining points
+            stats[randomStat] += remainingPoints;
+            remainingPoints = 0;
+        }
+    }
+    
+    // Ensure all stats end in 0 or 5
+    Object.keys(stats).forEach(stat => {
+        stats[stat] = Math.round(stats[stat] / 5) * 5;
+    });
+    
+    // Create a new card based on the template with the distributed stats
+    const newCard = createCardFromTemplate(className);
+    newCard.stats = stats;
+    
+    // Calculate CP based on stats
+    newCard.cp = calculateCP(stats);
+    
+    return newCard;
+}
+
+// Function to evolve a basic class card to an advanced class
+function evolveCard(playerKey, basicCardIndex, targetEvolution) {
+    const player = gameState.players[playerKey];
+    const basicCard = player.field[basicCardIndex];
+    
+    // Check if this card can evolve
+    if (!basicCard || basicCard.classType !== CLASS_TYPES.BASIC) {
+        logGameEvent(`${basicCard?.name || 'Card'} cannot evolve - not a basic class!`);
+        return false;
+    }
+    
+    // Check if the target evolution is valid for this card
+    if (!basicCard.possibleEvolutions || !basicCard.possibleEvolutions.includes(targetEvolution)) {
+        logGameEvent(`${basicCard.name} cannot evolve into ${targetEvolution}`);
+        return false;
+    }
+    
+    // Create the advanced class card with distributed stats
+    const advancedCard = distributeStats(targetEvolution, true);
+    
+    if (!advancedCard) {
+        logGameEvent(`Failed to create evolved card: ${targetEvolution}`);
+        return false;
+    }
+    
+    // Set evolution properties
+    advancedCard.isEvolved = true;
+    advancedCard.evolvedFrom = basicCard.templateId;
+    advancedCard.classType = CLASS_TYPES.ADVANCED;
+    
+    // Keep the same position on the field
+    advancedCard.position = basicCard.position;
+    
+    // Remove the basic card from the field
+    player.trashPile.push(basicCard);
+    player.field[basicCardIndex] = advancedCard;
+    
+    // Evolution costs coins (discounted by 1 from the normal cost)
+    const evolutionCost = Math.max(0, advancedCard.cost - 1);
+    player.coins -= evolutionCost;
+    
+    logGameEvent(`${player.name}'s ${basicCard.name} evolved into ${advancedCard.name}! (Cost: ${evolutionCost} coins)`);
+    updateUI();
+    
+    return true;
+}
+
+// Show UI for selecting an evolution path
+function showEvolutionSelectionUI(playerKey, cardIndex) {
+    const player = gameState.players[playerKey];
+    const card = player.field[cardIndex];
+    
+    // Check if card can evolve
+    if (!card || card.classType !== CLASS_TYPES.BASIC || !card.possibleEvolutions) {
+        return;
+    }
+    
+    // Create modal overlay
+    const modalOverlay = document.createElement('div');
+    modalOverlay.className = 'modal-overlay';
+    
+    // Create selection container
+    const selectionContainer = document.createElement('div');
+    selectionContainer.className = 'evolution-selection';
+    selectionContainer.style.backgroundColor = 'white';
+    selectionContainer.style.padding = '20px';
+    selectionContainer.style.borderRadius = '8px';
+    selectionContainer.style.maxWidth = '600px';
+    selectionContainer.style.textAlign = 'center';
+    
+    // Add title
+    const title = document.createElement('h3');
+    title.textContent = `Select an evolution path for ${card.name}`;
+    title.style.marginBottom = '15px';
+    selectionContainer.appendChild(title);
+    
+    // Add description
+    const description = document.createElement('p');
+    description.textContent = 'Evolution transforms a basic class into an advanced class with enhanced stats and abilities.';
+    description.style.marginBottom = '20px';
+    selectionContainer.appendChild(description);
+    
+    // Create options container
+    const optionsContainer = document.createElement('div');
+    optionsContainer.style.display = 'flex';
+    optionsContainer.style.flexWrap = 'wrap';
+    optionsContainer.style.justifyContent = 'center';
+    optionsContainer.style.gap = '20px';
+    optionsContainer.style.marginBottom = '20px';
+    
+    // Add each evolution option
+    card.possibleEvolutions.forEach(evolutionId => {
+        const evolutionTemplate = deckBuilder.cardDatabase.find(c => c.templateId === evolutionId);
+        if (!evolutionTemplate) return;
+        
+        const option = document.createElement('div');
+        option.className = 'evolution-option';
+        option.style.width = '200px';
+        option.style.border = '2px solid gold';
+        option.style.borderRadius = '8px';
+        option.style.padding = '10px';
+        option.style.cursor = 'pointer';
+        option.style.backgroundColor = '#f8f8f8';
+        option.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
+        
+        // Create option content
+        const optionName = document.createElement('h4');
+        optionName.textContent = evolutionTemplate.name;
+        optionName.style.marginBottom = '10px';
+        optionName.style.color = '#333';
+        option.appendChild(optionName);
+        
+        // Add stat preview
+        const statPreview = document.createElement('div');
+        statPreview.style.marginBottom = '10px';
+        statPreview.style.fontSize = '12px';
+        
+        // Create a simple stat preview (will be replaced with actual distributed stats)
+        const stats = evolutionTemplate.stats;
+        statPreview.innerHTML = `
+            <div>STR: ${stats.STR} | DEX: ${stats.DEX}</div>
+            <div>VIT: ${stats.VIT} | INT: ${stats.INT}</div>
+            <div>EXP: ${stats.EXP}</div>
+        `;
+        option.appendChild(statPreview);
+        
+        // Add ability if any
+        if (evolutionTemplate.ability) {
+            const abilityText = document.createElement('div');
+            abilityText.textContent = `Ability: ${evolutionTemplate.ability}`;
+            abilityText.style.fontSize = '12px';
+            abilityText.style.color = '#6a0dad';
+            abilityText.style.marginBottom = '10px';
+            option.appendChild(abilityText);
+        }
+        
+        // Add evolution cost
+        const costText = document.createElement('div');
+        const evolutionCost = Math.max(0, evolutionTemplate.cost - 1);
+        costText.textContent = `Evolution Cost: ${evolutionCost} coins`;
+        costText.style.fontSize = '12px';
+        costText.style.fontWeight = 'bold';
+        costText.style.color = player.coins >= evolutionCost ? '#007700' : '#cc0000';
+        option.appendChild(costText);
+        
+        // Add select button
+        const selectButton = document.createElement('button');
+        selectButton.textContent = 'Select';
+        selectButton.style.marginTop = '10px';
+        selectButton.style.padding = '5px 15px';
+        selectButton.style.backgroundColor = '#ffcc00';
+        selectButton.style.border = 'none';
+        selectButton.style.borderRadius = '4px';
+        selectButton.style.cursor = 'pointer';
+        selectButton.style.fontWeight = 'bold';
+        selectButton.disabled = player.coins < evolutionCost;
+        selectButton.style.opacity = player.coins >= evolutionCost ? '1' : '0.5';
+        
+        // Evolution on click
+        selectButton.onclick = () => {
+            document.body.removeChild(modalOverlay);
+            evolveCard(playerKey, cardIndex, evolutionId);
+        };
+        option.appendChild(selectButton);
+        
+        // Highlight option on hover
+        option.onmouseover = () => {
+            option.style.boxShadow = '0 6px 12px rgba(255, 204, 0, 0.4)';
+            option.style.transform = 'translateY(-5px)';
+        };
+        
+        option.onmouseout = () => {
+            option.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
+            option.style.transform = 'translateY(0)';
+        };
+        
+        optionsContainer.appendChild(option);
+    });
+    
+    selectionContainer.appendChild(optionsContainer);
+    
+    // Add cancel button
+    const cancelButton = document.createElement('button');
+    cancelButton.textContent = 'Cancel';
+    cancelButton.style.padding = '8px 20px';
+    cancelButton.style.backgroundColor = '#dddddd';
+    cancelButton.style.border = 'none';
+    cancelButton.style.borderRadius = '4px';
+    cancelButton.style.cursor = 'pointer';
+    
+    cancelButton.onclick = () => {
+        document.body.removeChild(modalOverlay);
+    };
+    selectionContainer.appendChild(cancelButton);
+    
+    modalOverlay.appendChild(selectionContainer);
+    document.body.appendChild(modalOverlay);
 }
 
 // Helper function to shuffle an array (Fisher-Yates algorithm)
@@ -250,6 +684,9 @@ function initializeDeck() {
 
     // Create a simple default deck with 36 cards
     deckBuilder.cardDatabase.forEach(template => {
+        // Skip advanced class cards for initial deck
+        if (template.classType === CLASS_TYPES.ADVANCED) return;
+        
         // Add 6 of each card type
         for (let i = 0; i < 6; i++) {
             deck.push(createCardFromTemplate(template.templateId));
@@ -817,6 +1254,20 @@ function renderPlayerField(playerKey) {
                 cardElement.appendChild(movedIndicator);
             }
 
+            // Add class type indicator
+            const classTypeElement = document.createElement('div');
+            classTypeElement.className = 'class-type';
+            classTypeElement.textContent = card.classType === CLASS_TYPES.BASIC ? 'Basic' : 'Advanced';
+            classTypeElement.style.position = 'absolute';
+            classTypeElement.style.top = '20px';
+            classTypeElement.style.left = '5px';
+            classTypeElement.style.fontSize = '10px';
+            classTypeElement.style.padding = '2px 5px';
+            classTypeElement.style.borderRadius = '3px';
+            classTypeElement.style.backgroundColor = card.classType === CLASS_TYPES.BASIC ? 'rgba(0, 128, 255, 0.8)' : 'rgba(255, 215, 0, 0.8)';
+            classTypeElement.style.color = card.classType === CLASS_TYPES.BASIC ? 'white' : 'black';
+            cardElement.appendChild(classTypeElement);
+
             // Add movement functionality during movement phase
             if (playerKey === gameState.currentPlayer &&
                 gameState.currentPhase === GAME_PHASES.MOVEMENT &&
@@ -851,6 +1302,37 @@ function renderPlayerField(playerKey) {
 
                 cardElement.onclick = () => attackWithCreature(playerKey, cardIndex);
                 cardElement.classList.add('attackable');
+            }
+            // Add evolution functionality for basic class cards in play phase
+            else if (playerKey === gameState.currentPlayer &&
+                gameState.currentPhase === GAME_PHASES.PLAY &&
+                card.type === CARD_TYPES.CREATURE &&
+                card.classType === CLASS_TYPES.BASIC &&
+                card.possibleEvolutions) {
+                
+                // Add evolve button for basic class cards
+                const evolveButton = document.createElement('div');
+                evolveButton.className = 'evolve-button';
+                evolveButton.textContent = '⬆ Evolve';
+                evolveButton.style.position = 'absolute';
+                evolveButton.style.bottom = '15px';
+                evolveButton.style.left = '50%';
+                evolveButton.style.transform = 'translateX(-50%)';
+                evolveButton.style.backgroundColor = 'rgba(255, 215, 0, 0.8)';
+                evolveButton.style.color = 'black';
+                evolveButton.style.padding = '2px 5px';
+                evolveButton.style.borderRadius = '3px';
+                evolveButton.style.fontSize = '10px';
+                evolveButton.style.cursor = 'pointer';
+                
+                evolveButton.onclick = (e) => {
+                    e.stopPropagation(); // Prevent card click event
+                    showEvolutionSelectionUI(playerKey, cardIndex);
+                };
+                
+                cardElement.appendChild(evolveButton);
+                cardElement.classList.add('evolution-ready');
+                cardElement.style.border = '2px solid gold';
             }
             else {
                 cardElement.classList.add('disabled');
@@ -939,6 +1421,10 @@ function renderPlayerHand(playerKey, faceDown = false) {
 function renderApprenticeZone(playerKey) {
     const player = gameState.players[playerKey];
     const apprenticeElement = domElements[`${playerKey}Apprentice`];
+    
+    // If the element doesn't exist yet, return
+    if (!apprenticeElement) return;
+    
     apprenticeElement.innerHTML = '';
 
     player.apprenticeZone.forEach((card, index) => {
@@ -1160,6 +1646,11 @@ function createCardElement(card) {
     cardElement.className = 'card';
     cardElement.dataset.cardId = card.id;
 
+    // Add advanced class styling if applicable
+    if (card.classType === CLASS_TYPES.ADVANCED) {
+        cardElement.classList.add('advanced');
+    }
+
     // Check if image path exists, display fallback if missing
     if (card.image) {
         cardElement.style.backgroundImage = `url(${card.image})`;
@@ -1191,7 +1682,18 @@ function createCardElement(card) {
 
     const statsElement = document.createElement('div');
     statsElement.className = 'stats';
+    
+    // Update to include EXP stat
     statsElement.textContent = `STR: ${card.stats.STR} | DEX: ${card.stats.DEX} | VIT: ${card.stats.VIT} | INT: ${card.stats.INT}`;
+    
+    // Add EXP with special styling
+    if (card.stats.EXP !== undefined) {
+        const expSpan = document.createElement('span');
+        expSpan.className = 'exp';
+        expSpan.textContent = ` | EXP: ${card.stats.EXP}`;
+        expSpan.style.color = '#ffcc00';
+        statsElement.appendChild(expSpan);
+    }
 
     cardElement.appendChild(nameElement);
     cardElement.appendChild(costElement);
@@ -1379,9 +1881,22 @@ function playCard(playerKey, handIndex, position = null, isEvolution = false, ap
         logGameEvent(`${player.name} played ${card.name} (${card.cp} CP) at position ${card.position}`);
 
         // Implement card effects
-        if (card.name === 'Mage Apprentice') {
+        if (card.name === 'Mage') {
             drawCard(playerKey, 1);
             logGameEvent(`${card.name}'s effect: Draw 1 card`);
+        }
+        
+        // Add specific abilities for advanced classes
+        if (card.templateId === 'wizard' && !card.abilityApplied) {
+            // Wizard reduces spell costs by 1
+            logGameEvent(`${card.name}'s ability: Spells cost 1 less to play`);
+            card.abilityApplied = true;
+        }
+        
+        if (card.templateId === 'priest' && !card.abilityApplied) {
+            // Priest can heal creatures
+            logGameEvent(`${card.name}'s ability: Can restore 1000 CP to a creature each turn`);
+            card.abilityApplied = true;
         }
     } else if (card.type === CARD_TYPES.SPELL) {
         // Implement spell effects
@@ -1678,450 +2193,219 @@ function showPositionSelectionUI(playerKey, handIndex, isEvolution = false, appr
     gridContainer.style.width = '300px';
     gridContainer.style.height = '300px';
 
-    // Create cells for each position (0-8)
-    for (let pos = 0; pos < MAX_FIELD_SLOTS; pos++) {
-        const cell = document.createElement('div');
-        cell.style.border = '1px solid #ccc';
-        cell.style.borderRadius = '8px';
-        cell.style.display = 'flex';
-        cell.style.justifyContent = 'center';
-        cell.style.alignItems = 'center';
-        cell.style.position = 'relative';
+// Create cells for each position (0-8)
+for (let pos = 0; pos < MAX_FIELD_SLOTS; pos++) {
+    const cell = document.createElement('div');
+    cell.style.border = '1px solid #ccc';
+    cell.style.borderRadius = '8px';
+    cell.style.display = 'flex';
+    cell.style.justifyContent = 'center';
+    cell.style.alignItems = 'center';
+    cell.style.position = 'relative';
 
-        // Add position label
-        const posLabel = document.createElement('div');
-        posLabel.textContent = `Pos ${pos}`;
-        posLabel.style.position = 'absolute';
-        posLabel.style.top = '5px';
-        posLabel.style.right = '5px';
-        posLabel.style.fontSize = '10px';
-        posLabel.style.color = '#666';
-        cell.appendChild(posLabel);
+    // Add position label
+    const posLabel = document.createElement('div');
+    posLabel.textContent = `Pos ${pos}`;
+    posLabel.style.position = 'absolute';
+    posLabel.style.top = '5px';
+    posLabel.style.right = '5px';
+    posLabel.style.fontSize = '10px';
+    posLabel.style.color = '#666';
+    cell.appendChild(posLabel);
 
-        // Check if the position is one of the first 6 (valid for summoning)
-        if (pos < 6) {
-            // Check if there's a card at this position already
-            const existingCard = player.field.find(c => c.position === pos);
+    // Check if the position is one of the first 6 (valid for summoning)
+    if (pos < 6) {
+        // Check if there's a card at this position already
+        const existingCard = player.field.find(c => c.position === pos);
 
-            if (existingCard) {
-                // Position is occupied
-                cell.style.backgroundColor = 'rgba(255, 0, 0, 0.1)';
+        if (existingCard) {
+            // Position is occupied
+            cell.style.backgroundColor = 'rgba(255, 0, 0, 0.1)';
 
-                const occupiedLabel = document.createElement('div');
-                occupiedLabel.textContent = existingCard.name;
-                occupiedLabel.style.fontSize = '12px';
-                occupiedLabel.style.color = '#666';
-                cell.appendChild(occupiedLabel);
+            const occupiedLabel = document.createElement('div');
+            occupiedLabel.textContent = existingCard.name;
+            occupiedLabel.style.fontSize = '12px';
+            occupiedLabel.style.color = '#666';
+            cell.appendChild(occupiedLabel);
 
-                const replaceLabel = document.createElement('div');
-                replaceLabel.textContent = 'Replace';
-                replaceLabel.style.color = '#f44336';
-                replaceLabel.style.fontSize = '10px';
-                replaceLabel.style.position = 'absolute';
-                replaceLabel.style.bottom = '5px';
-                replaceLabel.style.width = '100%';
-                replaceLabel.style.textAlign = 'center';
-                cell.appendChild(replaceLabel);
+            const replaceLabel = document.createElement('div');
+            replaceLabel.textContent = 'Replace';
+            replaceLabel.style.color = '#f44336';
+            replaceLabel.style.fontSize = '10px';
+            replaceLabel.style.position = 'absolute';
+            replaceLabel.style.bottom = '5px';
+            replaceLabel.style.width = '100%';
+            replaceLabel.style.textAlign = 'center';
+            cell.appendChild(replaceLabel);
 
-                // Can click to replace
-                cell.style.cursor = 'pointer';
-                cell.onclick = () => {
-                    document.body.removeChild(modalOverlay);
-                    playCard(playerKey, handIndex, pos, isEvolution, apprentice);
-                };
-            } else {
-                // Position is open
-                cell.style.backgroundColor = 'rgba(76, 175, 80, 0.2)';
-                cell.style.border = '2px dashed #4caf50';
-                cell.style.cursor = 'pointer';
-
-                const emptyLabel = document.createElement('div');
-                emptyLabel.textContent = 'Empty - Place Here';
-                emptyLabel.style.fontSize = '12px';
-                emptyLabel.style.color = '#4caf50';
-                cell.appendChild(emptyLabel);
-
-                // Click to place
-                cell.onclick = () => {
-                    document.body.removeChild(modalOverlay);
-                    playCard(playerKey, handIndex, pos, isEvolution, apprentice);
-                };
-            }
+            // Can click to replace
+            cell.style.cursor = 'pointer';
+            cell.onclick = () => {
+                document.body.removeChild(modalOverlay);
+                playCard(playerKey, handIndex, pos, isEvolution, apprentice);
+            };
         } else {
-            // Positions 6-8 are not valid for initial placement
-            cell.style.backgroundColor = 'rgba(0, 0, 0, 0.05)';
-            cell.style.opacity = '0.6';
+            // Position is open
+            cell.style.backgroundColor = 'rgba(76, 175, 80, 0.2)';
+            cell.style.border = '2px dashed #4caf50';
+            cell.style.cursor = 'pointer';
 
-            const invalidLabel = document.createElement('div');
-            invalidLabel.textContent = 'Movement Only';
-            invalidLabel.style.fontSize = '12px';
-            invalidLabel.style.color = '#999';
-            cell.appendChild(invalidLabel);
+            const emptyLabel = document.createElement('div');
+            emptyLabel.textContent = 'Empty - Place Here';
+            emptyLabel.style.fontSize = '12px';
+            emptyLabel.style.color = '#4caf50';
+            cell.appendChild(emptyLabel);
+
+            // Click to place
+            cell.onclick = () => {
+                document.body.removeChild(modalOverlay);
+                playCard(playerKey, handIndex, pos, isEvolution, apprentice);
+            };
         }
+    } else {
+        // Positions 6-8 are not valid for initial placement
+        cell.style.backgroundColor = 'rgba(0, 0, 0, 0.05)';
+        cell.style.opacity = '0.6';
 
-        gridContainer.appendChild(cell);
+        const invalidLabel = document.createElement('div');
+        invalidLabel.textContent = 'Movement Only';
+        invalidLabel.style.fontSize = '12px';
+        invalidLabel.style.color = '#999';
+        cell.appendChild(invalidLabel);
     }
 
-    selectionContainer.appendChild(gridContainer);
+    gridContainer.appendChild(cell);
+}
 
-    // Add card info
-    const cardInfo = document.createElement('div');
-    cardInfo.style.marginTop = '15px';
-    cardInfo.style.backgroundColor = '#f5f5f5';
-    cardInfo.style.padding = '10px';
-    cardInfo.style.borderRadius = '5px';
-    cardInfo.style.fontSize = '14px';
+selectionContainer.appendChild(gridContainer);
 
-    // Add attack range info for creatures
-    if (card.type === CARD_TYPES.CREATURE) {
-        const isMage = card.name.toLowerCase().includes('mage');
-        const range = isMage ? 2 : 1;
-        card.attackRange = range; // Set the range
+// Add card info
+const cardInfo = document.createElement('div');
+cardInfo.style.marginTop = '15px';
+cardInfo.style.backgroundColor = '#f5f5f5';
+cardInfo.style.padding = '10px';
+cardInfo.style.borderRadius = '5px';
+cardInfo.style.fontSize = '14px';
 
-        cardInfo.innerHTML = `<strong>${card.name}</strong>: ${isMage ? 'Ranged' : 'Melee'} unit (Attack Range: ${range})`;
-        cardInfo.innerHTML += `<br>CP: ${card.cp}`;
-
-        // Add range tip
-        if (isMage) {
-            cardInfo.innerHTML += `<br><span style="color:#1976d2;">Tip: Mages can attack targets up to 2 positions away (diagonally counts as 2 moves).</span>`;
-        } else {
-            cardInfo.innerHTML += `<br><span style="color:#d32f2f;">Tip: Melee units can only attack adjacent positions.</span>`;
-        }
+// Add attack range info for creatures
+if (card.type === CARD_TYPES.CREATURE) {
+    const isMage = card.name.toLowerCase().includes('mage');
+    const isArcher = card.templateId === 'archer';
+    let range = 1;
+    
+    if (isArcher) {
+        range = 3;
+    } else if (isMage || card.name.toLowerCase().includes('wizard')) {
+        range = 2;
     }
+    
+    card.attackRange = range; // Set the range
 
-    selectionContainer.appendChild(cardInfo);
+    cardInfo.innerHTML = `<strong>${card.name}</strong>: ${range > 1 ? 'Ranged' : 'Melee'} unit (Attack Range: ${range})`;
+    cardInfo.innerHTML += `<br>CP: ${card.cp}`;
 
-    // Add cancel button
-    const cancelButton = document.createElement('button');
-    cancelButton.textContent = 'Cancel';
-    cancelButton.className = 'phase-btn';
-    cancelButton.style.backgroundColor = '#f44336';
-    cancelButton.style.padding = '10px 20px';
-    cancelButton.style.marginTop = '15px';
-    cancelButton.onclick = () => {
-        document.body.removeChild(modalOverlay);
-        if (isEvolution) {
-            // If canceling an evolution, revert to evolution mode
-            gameState.evolution.isEvolutionMode = true;
-        }
-    };
-    selectionContainer.appendChild(cancelButton);
+    // Add range tip
+    if (isArcher) {
+        cardInfo.innerHTML += `<br><span style="color:#1976d2;">Tip: Archers can attack targets up to 3 positions away.</span>`;
+    } else if (isMage) {
+        cardInfo.innerHTML += `<br><span style="color:#1976d2;">Tip: Mages can attack targets up to 2 positions away (diagonally counts as 2 moves).</span>`;
+    } else {
+        cardInfo.innerHTML += `<br><span style="color:#d32f2f;">Tip: Melee units can only attack adjacent positions.</span>`;
+    }
+}
 
-    // Append to modal
-    modalOverlay.appendChild(selectionContainer);
+selectionContainer.appendChild(cardInfo);
 
-    // Add to document
-    document.body.appendChild(modalOverlay);
+// Add cancel button
+const cancelButton = document.createElement('button');
+cancelButton.textContent = 'Cancel';
+cancelButton.className = 'phase-btn';
+cancelButton.style.backgroundColor = '#f44336';
+cancelButton.style.padding = '10px 20px';
+cancelButton.style.marginTop = '15px';
+cancelButton.onclick = () => {
+    document.body.removeChild(modalOverlay);
+    if (isEvolution) {
+        // If canceling an evolution, revert to evolution mode
+        gameState.evolution.isEvolutionMode = true;
+    }
+};
+selectionContainer.appendChild(cancelButton);
+
+// Append to modal
+modalOverlay.appendChild(selectionContainer);
+
+// Add to document
+document.body.appendChild(modalOverlay);
 }
 
 // Attack with a creature
 function attackWithCreature(playerKey, fieldIndex) {
-    const player = gameState.players[playerKey];
-    const opponent = playerKey === 'playerA' ? 'playerB' : 'playerA';
+const player = gameState.players[playerKey];
+const opponent = playerKey === 'playerA' ? 'playerB' : 'playerA';
 
-    if (playerKey !== gameState.currentPlayer || gameState.currentPhase !== GAME_PHASES.ATTACK) {
-        logGameEvent("Can't attack - not your turn or wrong phase!");
-        return;
-    }
+if (playerKey !== gameState.currentPlayer || gameState.currentPhase !== GAME_PHASES.ATTACK) {
+    logGameEvent("Can't attack - not your turn or wrong phase!");
+    return;
+}
 
-    const attacker = player.field[fieldIndex];
+const attacker = player.field[fieldIndex];
 
-    // Check if card can attack
-    if (!attacker.canAttack || attacker.hasAttacked) {
-        logGameEvent(`${attacker.name} cannot attack right now!`);
-        return;
-    }
+// Check if card can attack
+if (!attacker.canAttack || attacker.hasAttacked) {
+    logGameEvent(`${attacker.name} cannot attack right now!`);
+    return;
+}
 
-    // Get valid targets based on position
-    const validTargets = gameState.players[opponent].field.filter(card =>
-        canAttackTarget(attacker, card)
-    );
+// Get valid targets based on position
+const validTargets = gameState.players[opponent].field.filter(card =>
+    canAttackTarget(attacker, card)
+);
 
-    // Check if Rogue Scout's Stealth ability applies
-    const hasStealth = attacker.name === 'Rogue Scout' &&
-        attacker.ability === 'Stealth' &&
-        !attacker.hasAttackedBefore;
+// Check for special abilities
+// Rogue Scout's Stealth ability
+const hasStealth = attacker.name === 'Rogue Scout' &&
+    attacker.ability === 'Stealth' &&
+    !attacker.hasAttackedBefore;
 
-    if (hasStealth) {
-        logGameEvent(`${attacker.name}'s Stealth ability allows attacking security directly!`);
-        attacker.hasAttackedBefore = true;
+// Assassin's Backstab ability
+const hasBackstab = attacker.templateId === 'assassin' && 
+    attacker.position >= 6 && attacker.position <= 8;
+
+if (hasStealth) {
+    logGameEvent(`${attacker.name}'s Stealth ability allows attacking security directly!`);
+    attacker.hasAttackedBefore = true;
+    directAttack(playerKey, fieldIndex, attacker, opponent);
+    return;
+}
+
+// If no valid targets, check if direct attack is possible
+if (validTargets.length === 0) {
+    // Check if the opponent has any creatures at all
+    if (gameState.players[opponent].field.length === 0) {
+        // If no creatures, allow direct attack
         directAttack(playerKey, fieldIndex, attacker, opponent);
         return;
-    }
-
-    // If no valid targets, check if direct attack is possible
-    if (validTargets.length === 0) {
-        // Check if the opponent has any creatures at all
-        if (gameState.players[opponent].field.length === 0) {
-            // If no creatures, allow direct attack
-            directAttack(playerKey, fieldIndex, attacker, opponent);
-            return;
-        } else {
-            // If there are creatures but none in range, inform player
-            logGameEvent(`${attacker.name} has no valid targets in range (Range: ${attacker.attackRange})`);
-
-            // If player is human, show target selection UI with direct attack option
-            if (playerKey === 'playerA') {
-                showTargetSelectionUI(playerKey, fieldIndex, attacker, validTargets, true);
-            }
-            return;
-        }
-    }
-
-    // If player is human, show target selection UI
-    if (playerKey === 'playerA') {
-        showTargetSelectionUI(playerKey, fieldIndex, attacker, validTargets);
     } else {
-        // For AI, choose the best target
-        const bestTargetIndex = getBestTargetForAI(attacker, validTargets);
-        const targetCard = validTargets[bestTargetIndex];
-        const targetIndex = gameState.players[opponent].field.findIndex(card => card.id === targetCard.id);
+        // If there are creatures but none in range, inform player
+        logGameEvent(`${attacker.name} has no valid targets in range (Range: ${attacker.attackRange})`);
 
-        // Mark card as having attacked
-        attacker.hasAttacked = true;
-
-        // Deduct 1 coin for attacking (if player has coins)
-        if (player.coins >= 1) {
-            player.coins -= 1;
-            logGameEvent(`${player.name} spent 1 coin for attack action`);
-        } else {
-            logGameEvent(`${player.name} has no coins left but can still attack`);
+        // If player is human, show target selection UI with direct attack option
+        if (playerKey === 'playerA') {
+            showTargetSelectionUI(playerKey, fieldIndex, attacker, validTargets, true);
         }
-
-        // Process the attack
-        processCreatureAttack(playerKey, fieldIndex, opponent, targetIndex);
+        return;
     }
 }
 
-// Show UI for selecting a target when attacking
-function showTargetSelectionUI(playerKey, attackerIndex, attacker, validTargets, allowDirectAttack = false) {
-    const opponent = playerKey === 'playerA' ? 'playerB' : 'playerA';
-
-    // Create a modal overlay
-    const modalOverlay = document.createElement('div');
-    modalOverlay.className = 'modal-overlay';
-    modalOverlay.style.position = 'fixed';
-    modalOverlay.style.top = '0';
-    modalOverlay.style.left = '0';
-    modalOverlay.style.width = '100%';
-    modalOverlay.style.height = '100%';
-    modalOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-    modalOverlay.style.display = 'flex';
-    modalOverlay.style.justifyContent = 'center';
-    modalOverlay.style.alignItems = 'center';
-    modalOverlay.style.zIndex = '1000';
-
-    // Create the target selection container
-    const selectionContainer = document.createElement('div');
-    selectionContainer.className = 'target-selection';
-    selectionContainer.style.backgroundColor = 'white';
-    selectionContainer.style.padding = '20px';
-    selectionContainer.style.borderRadius = '8px';
-    selectionContainer.style.maxWidth = '600px';
-    selectionContainer.style.textAlign = 'center';
-
-    // Add selection prompt
-    const promptText = document.createElement('h3');
-    promptText.textContent = `Select a target for ${attacker.name} to attack`;
-    selectionContainer.appendChild(promptText);
-
-    // Show attacker info
-    const attackerInfo = document.createElement('div');
-    attackerInfo.style.margin = '10px 0';
-    attackerInfo.style.padding = '10px';
-    attackerInfo.style.backgroundColor = '#f5f5f5';
-    attackerInfo.style.borderRadius = '5px';
-    attackerInfo.innerHTML = `<strong>Attacker:</strong> ${attacker.name} (${attacker.cp} CP) | Range: ${attacker.attackRange} | Position: ${attacker.position}`;
-    selectionContainer.appendChild(attackerInfo);
-
-    // Create targets container
-    const targetsGrid = document.createElement('div');
-    targetsGrid.style.display = 'flex';
-    targetsGrid.style.flexWrap = 'wrap';
-    targetsGrid.style.justifyContent = 'center';
-    targetsGrid.style.gap = '10px';
-    targetsGrid.style.margin = '20px 0';
-
-    // Add each valid target
-    validTargets.forEach((target, index) => {
-        const targetCard = document.createElement('div');
-        targetCard.className = 'target-card';
-        targetCard.style.width = '120px';
-        targetCard.style.height = '150px';
-        targetCard.style.border = '2px solid #ccc';
-        targetCard.style.borderRadius = '8px';
-        targetCard.style.cursor = 'pointer';
-        targetCard.style.position = 'relative';
-        targetCard.style.display = 'flex';
-        targetCard.style.flexDirection = 'column';
-        targetCard.style.overflow = 'hidden';
-
-        // Card image
-        const cardImage = document.createElement('div');
-        cardImage.style.flex = '1';
-        cardImage.style.backgroundSize = 'contain';
-        cardImage.style.backgroundPosition = 'center';
-        cardImage.style.backgroundRepeat = 'no-repeat';
-        cardImage.style.backgroundColor = '#f5f5f5';
-
-        if (target.image) {
-            cardImage.style.backgroundImage = `url(${target.image})`;
-        }
-
-        targetCard.appendChild(cardImage);
-
-        // Card info
-        const cardInfo = document.createElement('div');
-        cardInfo.style.padding = '5px';
-        cardInfo.style.backgroundColor = '#333';
-        cardInfo.style.color = 'white';
-        cardInfo.style.fontSize = '12px';
-        cardInfo.innerHTML = `<div>${target.name}</div><div>CP: ${target.cp}</div>`;
-        targetCard.appendChild(cardInfo);
-
-        // Position indicator
-        const positionLabel = document.createElement('div');
-        positionLabel.textContent = `Position ${target.position}`;
-        positionLabel.style.position = 'absolute';
-        positionLabel.style.top = '5px';
-        positionLabel.style.right = '5px';
-        positionLabel.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-        positionLabel.style.color = 'white';
-        positionLabel.style.padding = '2px 5px';
-        positionLabel.style.fontSize = '10px';
-        positionLabel.style.borderRadius = '3px';
-        targetCard.appendChild(positionLabel);
-
-        // When a target is clicked, attack it
-        targetCard.onclick = () => {
-            document.body.removeChild(modalOverlay);
-
-            // Mark attacker as having attacked
-            attacker.hasAttacked = true;
-
-            // Deduct 1 coin for attacking (if player has coins)
-            const player = gameState.players[playerKey];
-            if (player.coins >= 1) {
-                player.coins -= 1;
-                logGameEvent(`${player.name} spent 1 coin for attack action`);
-            } else {
-                logGameEvent(`${player.name} has no coins left but can still attack`);
-            }
-
-            // Find the target's index in the opponent's field
-            const targetIndex = gameState.players[opponent].field.findIndex(card => card.id === target.id);
-            processCreatureAttack(playerKey, attackerIndex, opponent, targetIndex);
-        };
-
-        // Add highlight on hover
-        targetCard.onmouseover = () => {
-            targetCard.style.borderColor = '#f44336';
-            targetCard.style.boxShadow = '0 0 10px rgba(244, 67, 54, 0.5)';
-        };
-
-        targetCard.onmouseout = () => {
-            targetCard.style.borderColor = '#ccc';
-            targetCard.style.boxShadow = '';
-        };
-
-        targetsGrid.appendChild(targetCard);
-    });
-
-    selectionContainer.appendChild(targetsGrid);
-
-    // Add option to attack security directly (if allowed or no targets)
-    if (allowDirectAttack || validTargets.length === 0) {
-        const directAttackInfo = document.createElement('div');
-        directAttackInfo.style.margin = '15px 0';
-        directAttackInfo.style.padding = '10px';
-        directAttackInfo.style.backgroundColor = 'rgba(255, 193, 7, 0.2)';
-        directAttackInfo.style.borderRadius = '5px';
-
-        if (validTargets.length === 0 && gameState.players[opponent].field.length > 0) {
-            directAttackInfo.innerHTML = `<p><strong>No targets in range.</strong> ${attacker.name} can attack security directly.</p>`;
-        } else {
-            directAttackInfo.innerHTML = `<p>You can choose to attack security directly instead of targeting a creature.</p>`;
-        }
-
-        selectionContainer.appendChild(directAttackInfo);
-
-        const directAttackBtn = document.createElement('button');
-        directAttackBtn.textContent = 'Attack Security Directly';
-        directAttackBtn.className = 'phase-btn';
-        directAttackBtn.style.backgroundColor = '#f44336';
-        directAttackBtn.style.margin = '10px 0';
-        directAttackBtn.style.padding = '10px 20px';
-        directAttackBtn.onclick = () => {
-            document.body.removeChild(modalOverlay);
-            directAttack(playerKey, attackerIndex, attacker, opponent);
-        };
-        selectionContainer.appendChild(directAttackBtn);
-    }
-
-    // Add cancel button
-    const cancelButton = document.createElement('button');
-    cancelButton.textContent = 'Cancel';
-    cancelButton.className = 'phase-btn';
-    cancelButton.style.backgroundColor = '#9e9e9e';
-    cancelButton.style.padding = '10px 20px';
-    cancelButton.onclick = () => {
-        document.body.removeChild(modalOverlay);
-    };
-    selectionContainer.appendChild(cancelButton);
-
-    // Append to modal
-    modalOverlay.appendChild(selectionContainer);
-
-    // Add to document
-    document.body.appendChild(modalOverlay);
-}
-
-// Choose the best target for AI
-function getBestTargetForAI(attacker, validTargets) {
-    // Simple strategy: attack the target with highest CP first
-    return validTargets.reduce((maxIndex, target, currentIndex, array) =>
-        target.cp > array[maxIndex].cp ? currentIndex : maxIndex, 0);
-}
-
-// Process a creature attack (creature vs creature)
-function processCreatureAttack(playerKey, attackerIndex, opponent, targetIndex) {
-    const player = gameState.players[playerKey];
-    const attacker = player.field[attackerIndex];
-    const defender = gameState.players[opponent].field[targetIndex];
-    
-    logGameEvent(`${player.name}'s ${attacker.name} (${attacker.cp} CP) at position ${attacker.position} attacks ${gameState.players[opponent].name}'s ${defender.name} (${defender.cp} CP) at position ${defender.position}!`);
-    
-    // Apply Paladin Guard special ability if applicable
-    let defenderBonus = 0;
-    if (defender.name === 'Paladin Guard') {
-        defenderBonus = 1000;
-        logGameEvent(`${defender.name}'s ability reduces damage by 1000!`);
-    }
-    
-    // Compare CP to determine winner
-    if (attacker.cp > defender.cp + defenderBonus) {
-        logGameEvent(`${defender.name} was defeated in battle!`);
-        gameState.players[opponent].trashPile.push(defender);
-        gameState.players[opponent].field = gameState.players[opponent].field.filter(card => card.id !== defender.id);
-    } else {
-        logGameEvent(`${attacker.name}'s attack was blocked!`);
-        if (attacker.cp < defender.cp) {
-            logGameEvent(`${attacker.name} was defeated in battle!`);
-            player.trashPile.push(attacker);
-            player.field = player.field.filter(card => card.id !== attacker.id);
-        } else {
-            logGameEvent("Both creatures survived the battle!");
-        }
-    }
-    
-    updateUI();
-}
-
-
-
-// Process a direct attack on security
-function directAttack(playerKey, fieldIndex, attacker, opponent) {
-    const player = gameState.players[playerKey];
+// If player is human, show target selection UI
+if (playerKey === 'playerA') {
+    showTargetSelectionUI(playerKey, fieldIndex, attacker, validTargets);
+} else {
+    // For AI, choose the best target
+    const bestTargetIndex = getBestTargetForAI(attacker, validTargets);
+    const targetCard = validTargets[bestTargetIndex];
+    const targetIndex = gameState.players[opponent].field.findIndex(card => card.id === targetCard.id);
 
     // Mark card as having attacked
     attacker.hasAttacked = true;
@@ -2134,241 +2418,706 @@ function directAttack(playerKey, fieldIndex, attacker, opponent) {
         logGameEvent(`${player.name} has no coins left but can still attack`);
     }
 
-    logGameEvent(`${player.name}'s ${attacker.name} (Position ${attacker.position}) attacks security directly!`);
+    // Process the attack
+    processCreatureAttack(playerKey, fieldIndex, opponent, targetIndex);
+}
+}
 
-    // Attack goes through to security stack
-    if (gameState.players[opponent].security.length > 0) {
-        const securityCard = gameState.players[opponent].security.pop();
-        logGameEvent(`Security card revealed: ${securityCard.name}!`);
+// Show UI for selecting a target when attacking
+function showTargetSelectionUI(playerKey, attackerIndex, attacker, validTargets, allowDirectAttack = false) {
+const opponent = playerKey === 'playerA' ? 'playerB' : 'playerA';
 
-        // Handle security card effects
-        if (securityCard.type === CARD_TYPES.CREATURE) {
-            logGameEvent(`Security creature ${securityCard.name} (${securityCard.cp} CP) defends!`);
-            if (attacker.cp > securityCard.cp) {
-                logGameEvent(`${securityCard.name} was defeated!`);
-                gameState.players[opponent].trashPile.push(securityCard);
-            } else {
-                logGameEvent(`${attacker.name} was defeated by security!`);
+// Create a modal overlay
+const modalOverlay = document.createElement('div');
+modalOverlay.className = 'modal-overlay';
+modalOverlay.style.position = 'fixed';
+modalOverlay.style.top = '0';
+modalOverlay.style.left = '0';
+modalOverlay.style.width = '100%';
+modalOverlay.style.height = '100%';
+modalOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+modalOverlay.style.display = 'flex';
+modalOverlay.style.justifyContent = 'center';
+modalOverlay.style.alignItems = 'center';
+modalOverlay.style.zIndex = '1000';
+
+// Create the target selection container
+const selectionContainer = document.createElement('div');
+selectionContainer.className = 'target-selection';
+selectionContainer.style.backgroundColor = 'white';
+selectionContainer.style.padding = '20px';
+selectionContainer.style.borderRadius = '8px';
+selectionContainer.style.maxWidth = '600px';
+selectionContainer.style.textAlign = 'center';
+
+// Add selection prompt
+const promptText = document.createElement('h3');
+promptText.textContent = `Select a target for ${attacker.name} to attack`;
+selectionContainer.appendChild(promptText);
+
+// Show attacker info
+const attackerInfo = document.createElement('div');
+attackerInfo.style.margin = '10px 0';
+attackerInfo.style.padding = '10px';
+attackerInfo.style.backgroundColor = '#f5f5f5';
+attackerInfo.style.borderRadius = '5px';
+attackerInfo.innerHTML = `<strong>Attacker:</strong> ${attacker.name} (${attacker.cp} CP) | Range: ${attacker.attackRange} | Position: ${attacker.position}`;
+
+// Add special ability info
+if (attacker.templateId === 'assassin' && attacker.position >= 6 && attacker.position <= 8) {
+    attackerInfo.innerHTML += `<br><span style="color:#d32f2f;">Backstab: +2000 bonus damage when attacking from back row (positions 6-8)</span>`;
+}
+
+selectionContainer.appendChild(attackerInfo);
+
+// Create targets container
+const targetsGrid = document.createElement('div');
+targetsGrid.style.display = 'flex';
+targetsGrid.style.flexWrap = 'wrap';
+targetsGrid.style.justifyContent = 'center';
+targetsGrid.style.gap = '10px';
+targetsGrid.style.margin = '20px 0';
+
+// Add each valid target
+validTargets.forEach((target, index) => {
+    const targetCard = document.createElement('div');
+    targetCard.className = 'target-card';
+    targetCard.style.width = '120px';
+    targetCard.style.height = '150px';
+    targetCard.style.border = '2px solid #ccc';
+    targetCard.style.borderRadius = '8px';
+    targetCard.style.cursor = 'pointer';
+    targetCard.style.position = 'relative';
+    targetCard.style.display = 'flex';
+    targetCard.style.flexDirection = 'column';
+    targetCard.style.overflow = 'hidden';
+
+    // Card image
+    const cardImage = document.createElement('div');
+    cardImage.style.flex = '1';
+    cardImage.style.backgroundSize = 'contain';
+    cardImage.style.backgroundPosition = 'center';
+    cardImage.style.backgroundRepeat = 'no-repeat';
+    cardImage.style.backgroundColor = '#f5f5f5';
+
+    if (target.image) {
+        cardImage.style.backgroundImage = `url(${target.image})`;
+    }
+
+    targetCard.appendChild(cardImage);
+
+    // Card info
+    const cardInfo = document.createElement('div');
+    cardInfo.style.padding = '5px';
+    cardInfo.style.backgroundColor = '#333';
+    cardInfo.style.color = 'white';
+    cardInfo.style.fontSize = '12px';
+    cardInfo.innerHTML = `<div>${target.name}</div><div>CP: ${target.cp}</div>`;
+    targetCard.appendChild(cardInfo);
+
+    // Position indicator
+    const positionLabel = document.createElement('div');
+    positionLabel.textContent = `Position ${target.position}`;
+    positionLabel.style.position = 'absolute';
+    positionLabel.style.top = '5px';
+    positionLabel.style.right = '5px';
+    positionLabel.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+    positionLabel.style.color = 'white';
+    positionLabel.style.padding = '2px 5px';
+    positionLabel.style.fontSize = '10px';
+    positionLabel.style.borderRadius = '3px';
+    targetCard.appendChild(positionLabel);
+
+    // When a target is clicked, attack it
+    targetCard.onclick = () => {
+        document.body.removeChild(modalOverlay);
+
+        // Mark attacker as having attacked
+        attacker.hasAttacked = true;
+
+        // Deduct 1 coin for attacking (if player has coins)
+        const player = gameState.players[playerKey];
+        if (player.coins >= 1) {
+            player.coins -= 1;
+            logGameEvent(`${player.name} spent 1 coin for attack action`);
+        } else {
+            logGameEvent(`${player.name} has no coins left but can still attack`);
+        }
+
+        // Find the target's index in the opponent's field
+        const targetIndex = gameState.players[opponent].field.findIndex(card => card.id === target.id);
+        processCreatureAttack(playerKey, attackerIndex, opponent, targetIndex);
+    };
+
+    // Add highlight on hover
+    targetCard.onmouseover = () => {
+        targetCard.style.borderColor = '#f44336';
+        targetCard.style.boxShadow = '0 0 10px rgba(244, 67, 54, 0.5)';
+    };
+
+    targetCard.onmouseout = () => {
+        targetCard.style.borderColor = '#ccc';
+        targetCard.style.boxShadow = '';
+    };
+
+    targetsGrid.appendChild(targetCard);
+});
+
+selectionContainer.appendChild(targetsGrid);
+
+// Add option to attack security directly (if allowed or no targets)
+if (allowDirectAttack || validTargets.length === 0) {
+    const directAttackInfo = document.createElement('div');
+    directAttackInfo.style.margin = '15px 0';
+    directAttackInfo.style.padding = '10px';
+    directAttackInfo.style.backgroundColor = 'rgba(255, 193, 7, 0.2)';
+    directAttackInfo.style.borderRadius = '5px';
+
+    if (validTargets.length === 0 && gameState.players[opponent].field.length > 0) {
+        directAttackInfo.innerHTML = `<p><strong>No targets in range.</strong> ${attacker.name} can attack security directly.</p>`;
+    } else {
+        directAttackInfo.innerHTML = `<p>You can choose to attack security directly instead of targeting a creature.</p>`;
+    }
+
+    selectionContainer.appendChild(directAttackInfo);
+
+    const directAttackBtn = document.createElement('button');
+    directAttackBtn.textContent = 'Attack Security Directly';
+    directAttackBtn.className = 'phase-btn';
+    directAttackBtn.style.backgroundColor = '#f44336';
+    directAttackBtn.style.margin = '10px 0';
+    directAttackBtn.style.padding = '10px 20px';
+    directAttackBtn.onclick = () => {
+        document.body.removeChild(modalOverlay);
+        directAttack(playerKey, attackerIndex, attacker, opponent);
+    };
+    selectionContainer.appendChild(directAttackBtn);
+}
+
+// Add cancel button
+const cancelButton = document.createElement('button');
+cancelButton.textContent = 'Cancel';
+cancelButton.className = 'phase-btn';
+cancelButton.style.backgroundColor = '#9e9e9e';
+cancelButton.style.padding = '10px 20px';
+cancelButton.onclick = () => {
+    document.body.removeChild(modalOverlay);
+};
+selectionContainer.appendChild(cancelButton);
+
+// Append to modal
+modalOverlay.appendChild(selectionContainer);
+
+// Add to document
+document.body.appendChild(modalOverlay);
+}
+
+// Choose the best target for AI
+function getBestTargetForAI(attacker, validTargets) {
+// Simple strategy: attack the target with highest CP first
+return validTargets.reduce((maxIndex, target, currentIndex, array) =>
+    target.cp > array[maxIndex].cp ? currentIndex : maxIndex, 0);
+}
+
+// Process a creature attack (creature vs creature)
+function processCreatureAttack(playerKey, attackerIndex, opponent, targetIndex) {
+const player = gameState.players[playerKey];
+const attacker = player.field[attackerIndex];
+const defender = gameState.players[opponent].field[targetIndex];
+
+logGameEvent(`${player.name}'s ${attacker.name} (${attacker.cp} CP) at position ${attacker.position} attacks ${gameState.players[opponent].name}'s ${defender.name} (${defender.cp} CP) at position ${defender.position}!`);
+
+let attackerBonus = 0;
+let defenderBonus = 0;
+
+// Apply special abilities
+
+// Paladin Guard ability
+if (defender.templateId === 'paladin') {
+    defenderBonus = 1000;
+    logGameEvent(`${defender.name}'s ability reduces damage by 1000!`);
+}
+
+// Knight First Strike ability
+const hasFirstStrike = attacker.templateId === 'knight' && attacker.ability === 'First Strike';
+
+// Assassin Backstab ability
+if (attacker.templateId === 'assassin' && 
+    attacker.position >= 6 && attacker.position <= 8) {
+    attackerBonus = 2000;
+    logGameEvent(`${attacker.name}'s Backstab ability adds 2000 damage when attacking from back row!`);
+}
+
+// Compare CP to determine winner with bonuses
+if (attacker.cp + attackerBonus > defender.cp + defenderBonus) {
+    logGameEvent(`${defender.name} was defeated in battle!`);
+    gameState.players[opponent].trashPile.push(defender);
+    gameState.players[opponent].field = gameState.players[opponent].field.filter(card => card.id !== defender.id);
+    
+    // First Strike prevents damage to the attacker
+    if (!hasFirstStrike && attacker.cp <= defender.cp) {
+        logGameEvent(`${attacker.name} was also defeated in battle!`);
+        player.trashPile.push(attacker);
+        player.field = player.field.filter(card => card.id !== attacker.id);
+    }
+} else {
+    logGameEvent(`${attacker.name}'s attack was blocked!`);
+    if (attacker.cp + attackerBonus < defender.cp + defenderBonus) {
+        logGameEvent(`${attacker.name} was defeated in battle!`);
+        player.trashPile.push(attacker);
+        player.field = player.field.filter(card => card.id !== attacker.id);
+    } else {
+        logGameEvent("Both creatures survived the battle!");
+    }
+}
+
+updateUI();
+}
+
+// Process a direct attack on security
+function directAttack(playerKey, fieldIndex, attacker, opponent) {
+const player = gameState.players[playerKey];
+
+// Mark card as having attacked
+attacker.hasAttacked = true;
+
+// Deduct 1 coin for attacking (if player has coins)
+if (player.coins >= 1) {
+    player.coins -= 1;
+    logGameEvent(`${player.name} spent 1 coin for attack action`);
+} else {
+    logGameEvent(`${player.name} has no coins left but can still attack`);
+}
+
+logGameEvent(`${player.name}'s ${attacker.name} (Position ${attacker.position}) attacks security directly!`);
+
+// Attack goes through to security stack
+if (gameState.players[opponent].security.length > 0) {
+    const securityCard = gameState.players[opponent].security.pop();
+    logGameEvent(`Security card revealed: ${securityCard.name}!`);
+
+    // Handle security card effects
+    if (securityCard.type === CARD_TYPES.CREATURE) {
+        logGameEvent(`Security creature ${securityCard.name} (${securityCard.cp} CP) defends!`);
+        if (attacker.cp > securityCard.cp) {
+            logGameEvent(`${securityCard.name} was defeated!`);
+            gameState.players[opponent].trashPile.push(securityCard);
+        } else {
+            logGameEvent(`${attacker.name} was defeated by security!`);
+            player.trashPile.push(attacker);
+            player.field = player.field.filter(card => card.id !== attacker.id);
+            gameState.players[opponent].hand.push(securityCard);
+        }
+    } else if (securityCard.type === CARD_TYPES.SPELL) {
+        logGameEvent(`Security effect: ${securityCard.securityEffect || securityCard.effect}`);
+
+        // Implement security effects
+        if (securityCard.name === 'Fireball') {
+            logGameEvent(`Fireball deals 2000 damage to ${attacker.name}!`);
+            if (attacker.cp <= 2000) {
+                logGameEvent(`${attacker.name} was destroyed!`);
                 player.trashPile.push(attacker);
                 player.field = player.field.filter(card => card.id !== attacker.id);
-                gameState.players[opponent].hand.push(securityCard);
+            } else {
+                logGameEvent(`${attacker.name} survived with ${attacker.cp - 2000} CP!`);
             }
-        } else if (securityCard.type === CARD_TYPES.SPELL) {
-            logGameEvent(`Security effect: ${securityCard.securityEffect || securityCard.effect}`);
-
-            // Implement security effects
-            if (securityCard.name === 'Fireball') {
-                logGameEvent(`Fireball deals 2000 damage to ${attacker.name}!`);
-                if (attacker.cp <= 2000) {
-                    logGameEvent(`${attacker.name} was destroyed!`);
-                    player.trashPile.push(attacker);
-                    player.field = player.field.filter(card => card.id !== attacker.id);
-                } else {
-                    logGameEvent(`${attacker.name} survived with ${attacker.cp - 2000} CP!`);
-                }
-            } else if (securityCard.name === 'Healing Wave') {
-                logGameEvent(`${securityCard.securityEffect || securityCard.effect}`);
-                gameState.players[opponent].hand.push(securityCard);
-            }
-
-            if (securityCard.name !== 'Healing Wave') {
-                gameState.players[opponent].trashPile.push(securityCard);
-            }
+        } else if (securityCard.name === 'Healing Wave') {
+            logGameEvent(`${securityCard.securityEffect || securityCard.effect}`);
+            gameState.players[opponent].hand.push(securityCard);
         }
-    } else {
-        logGameEvent(`${player.name} wins! ${gameState.players[opponent].name} has no security left!`);
-        setTimeout(() => {
-            alert(`${player.name} wins!`);
-            initializeGame();
-        }, 1000);
-        return;
-    }
 
-    updateUI();
+        if (securityCard.name !== 'Healing Wave') {
+            gameState.players[opponent].trashPile.push(securityCard);
+        }
+    }
+} else {
+    logGameEvent(`${player.name} wins! ${gameState.players[opponent].name} has no security left!`);
+    setTimeout(() => {
+        alert(`${player.name} wins!`);
+        initializeGame();
+    }, 1000);
+    return;
 }
+
+updateUI();
+}
+
 // AI Turn Decision-Making Function
 function aiTakeAction() {
-    const aiPlayer = gameState.players.playerB;
+const aiPlayer = gameState.players.playerB;
 
-    switch (gameState.currentPhase) {
-        case GAME_PHASES.DRAW:
-            // AI always draws a card during draw phase
-            drawCard('playerB', 1);
-            advancePhase('playerB');
-            break;
+switch (gameState.currentPhase) {
+    case GAME_PHASES.DRAW:
+        // AI always draws a card during draw phase
+        drawCard('playerB', 1);
+        advancePhase('playerB');
+        break;
 
-        case GAME_PHASES.MOVEMENT:
-            // AI attempts to move creatures strategically
+    case GAME_PHASES.MOVEMENT:
+        // AI attempts to move creatures strategically
+        aiPlayer.field.forEach((card, index) => {
+            const validPositions = getValidMovementPositions('playerB', index);
+            if (validPositions.length > 0 && aiPlayer.coins >= MOVEMENT_COST) {
+                // Simple strategy: move to first valid position
+                moveCreature('playerB', index, validPositions[0]);
+            }
+        });
+        advancePhase('playerB');
+        break;
+
+    case GAME_PHASES.PLAY:
+        // First, try to evolve basic classes to advanced classes
+        let hasEvolved = false;
+        if (aiPlayer.coins >= 3) { // Ensure enough coins for evolution (typical cost)
             aiPlayer.field.forEach((card, index) => {
-                const validPositions = getValidMovementPositions('playerB', index);
-                if (validPositions.length > 0 && aiPlayer.coins >= MOVEMENT_COST) {
-                    // Simple strategy: move to first valid position
-                    moveCreature('playerB', index, validPositions[0]);
-                }
-            });
-            advancePhase('playerB');
-            break;
-
-        case GAME_PHASES.PLAY:
-            // AI tries to play cards from hand
-            aiPlayer.hand.forEach((card, index) => {
-                if (canPlayCard('playerB', card)) {
-                    // For creatures, find an empty position
-                    if (card.type === CARD_TYPES.CREATURE && countCreatures('playerB') < MAX_CREATURES) {
-                        let position = -1;
-                        for (let i = 0; i < 6; i++) {
-                            if (!aiPlayer.field.some(c => c.position === i)) {
-                                position = i;
-                                break;
-                            }
-                        }
-                        playCard('playerB', index, position);
+                if (!hasEvolved && 
+                    card.classType === CLASS_TYPES.BASIC && 
+                    card.possibleEvolutions && 
+                    card.possibleEvolutions.length > 0) {
+                    
+                    // Choose the first evolution path
+                    const targetEvolution = card.possibleEvolutions[0];
+                    if (evolveCard('playerB', index, targetEvolution)) {
+                        hasEvolved = true;
                     }
-                    // TODO: Add more sophisticated spell card play logic
                 }
             });
-            advancePhase('playerB');
-            break;
-
-        case GAME_PHASES.ATTACK:
-            // AI tries to attack with available creatures
-            aiPlayer.field.forEach((card, index) => {
-                if (card.type === CARD_TYPES.CREATURE && !card.hasAttacked && card.canAttack) {
-                    attackWithCreature('playerB', index);
+        }
+        
+        // Then, try to play cards from hand
+        aiPlayer.hand.forEach((card, index) => {
+            if (canPlayCard('playerB', card)) {
+                // For creatures, find an empty position
+                if (card.type === CARD_TYPES.CREATURE && countCreatures('playerB') < MAX_CREATURES) {
+                    let position = -1;
+                    for (let i = 0; i < 6; i++) {
+                        if (!aiPlayer.field.some(c => c.position === i)) {
+                            position = i;
+                            break;
+                        }
+                    }
+                    playCard('playerB', index, position);
+                } else if (card.type === CARD_TYPES.SPELL) {
+                    // Play spell cards
+                    playCard('playerB', index);
                 }
-            });
-            advancePhase('playerB');
-            break;
+            }
+        });
+        advancePhase('playerB');
+        break;
 
-        case GAME_PHASES.END:
-            advancePhase('playerB');
-            break;
-    }
+    case GAME_PHASES.ATTACK:
+        // AI tries to attack with available creatures
+        aiPlayer.field.forEach((card, index) => {
+            if (card.type === CARD_TYPES.CREATURE && !card.hasAttacked && card.canAttack) {
+                attackWithCreature('playerB', index);
+            }
+        });
+        advancePhase('playerB');
+        break;
+
+    case GAME_PHASES.END:
+        advancePhase('playerB');
+        break;
+}
 }
 
 // Advance game phase
 function advancePhase(playerKey) {
-    const currentPhases = Object.values(GAME_PHASES);
-    const currentPhaseIndex = currentPhases.indexOf(gameState.currentPhase);
+const currentPhases = Object.values(GAME_PHASES);
+const currentPhaseIndex = currentPhases.indexOf(gameState.currentPhase);
 
-    // Move to next phase
-    if (currentPhaseIndex < currentPhases.length - 1) {
-        gameState.currentPhase = currentPhases[currentPhaseIndex + 1];
-    } else {
-        // End of turn, switch players and reset
-        gameState.currentPlayer = playerKey === 'playerA' ? 'playerB' : 'playerA';
-        gameState.turn++;
+// Move to next phase
+if (currentPhaseIndex < currentPhases.length - 1) {
+    gameState.currentPhase = currentPhases[currentPhaseIndex + 1];
+} else {
+    // End of turn, switch players and reset
+    gameState.currentPlayer = playerKey === 'playerA' ? 'playerB' : 'playerA';
+    gameState.turn++;
 
-        // Reset turn-specific flags
-        gameState.players.playerA.hasPlayedApprentice = false;
-        gameState.players.playerB.hasPlayedApprentice = false;
-        gameState.players.playerA.hasMoved = [];
-        gameState.players.playerB.hasMoved = [];
+    // Reset turn-specific flags
+    gameState.players.playerA.hasPlayedApprentice = false;
+    gameState.players.playerB.hasPlayedApprentice = false;
+    gameState.players.playerA.hasMoved = [];
+    gameState.players.playerB.hasMoved = [];
 
-        // Reset creature attack and movement states
-        ['playerA', 'playerB'].forEach(player => {
-            gameState.players[player].field.forEach(card => {
-                card.hasAttacked = false;
-                card.canAttack = true;
-            });
+    // Reset creature attack and movement states
+    ['playerA', 'playerB'].forEach(player => {
+        gameState.players[player].field.forEach(card => {
+            card.hasAttacked = false;
+            card.canAttack = true;
         });
+    });
 
-        // Start next turn with draw phase
-        gameState.currentPhase = GAME_PHASES.DRAW;
+    // Start next turn with draw phase
+    gameState.currentPhase = GAME_PHASES.DRAW;
 
-        // Give coins to current player
-        gameState.players[gameState.currentPlayer].coins += 1;
-    }
+    // Give coins to current player
+    gameState.players[gameState.currentPlayer].coins += 1;
+}
 
-    updateUI();
+updateUI();
 }
 
 // Initialize the game
 function initializeGame() {
-    // Reset game state
-    gameState.currentPhase = GAME_PHASES.DRAW;
-    gameState.currentPlayer = 'playerA';
-    gameState.turn = 1;
-    gameState.gameLog = [];
-    gameState.evolution = {
-        isEvolutionMode: false,
-        sourceCard: null,
-        targetZone: null
-    };
+// Reset game state
+gameState.currentPhase = GAME_PHASES.DRAW;
+gameState.currentPlayer = 'playerA';
+gameState.turn = 1;
+gameState.gameLog = [];
+gameState.evolution = {
+    isEvolutionMode: false,
+    sourceCard: null,
+    targetZone: null
+};
 
-    // Reset both players
-    ['playerA', 'playerB'].forEach(playerKey => {
-        const player = gameState.players[playerKey];
+// Reset both players
+['playerA', 'playerB'].forEach(playerKey => {
+    const player = gameState.players[playerKey];
 
-        // Reset player state
-        player.coins = STARTING_COINS;
-        player.deck = [];
-        player.hand = [];
-        player.field = [];
-        player.security = [];
-        player.trashPile = [];
-        player.apprenticeDeck = [];
-        player.apprenticeZone = [];
-        player.hasPlayedApprentice = false;
-        player.hasMoved = [];
+    // Reset player state
+    player.coins = STARTING_COINS;
+    player.deck = [];
+    player.hand = [];
+    player.field = [];
+    player.security = [];
+    player.trashPile = [];
+    player.apprenticeDeck = [];
+    player.apprenticeZone = [];
+    player.hasPlayedApprentice = false;
+    player.hasMoved = [];
 
-        // Initialize decks
-        initializePlayerDeck(playerKey);
-        initializePlayerApprenticeDeck(playerKey);
+    // Initialize decks
+    initializePlayerDeck(playerKey);
+    initializePlayerApprenticeDeck(playerKey);
 
-        // Draw initial hand (typically 5 cards)
-        for (let i = 0; i < 5; i++) {
-            drawCard(playerKey, 1);
+    // Draw initial hand (typically 5 cards)
+    for (let i = 0; i < 5; i++) {
+        drawCard(playerKey, 1);
+    }
+
+    // Set up initial security stack (5 cards)
+    for (let i = 0; i < 5; i++) {
+        if (player.deck.length > 0) {
+            const securityCard = player.deck.shift();
+            player.security.push(securityCard);
         }
+    }
+});
 
-        // Set up initial security stack (5 cards)
-        for (let i = 0; i < 5; i++) {
-            if (player.deck.length > 0) {
-                const securityCard = player.deck.shift();
-                player.security.push(securityCard);
-            }
-        }
-    });
+// Create helper function to print and verify the new card system
+console.log("Verifying new card system implementation:");
 
-    // Update UI to reflect initial game state
-    updateUI();
+// Test basic class distribution
+const warrior = distributeStats('warrior', false);
+console.log("Basic Warrior:", warrior.stats);
+console.log("Total Stats:", Object.values(warrior.stats).reduce((a, b) => a + b, 0));
+console.log("CP:", calculateCP(warrior.stats));
+
+// Test advanced class distribution
+const paladin = distributeStats('paladin', true);
+console.log("Advanced Paladin:", paladin.stats);
+console.log("Total Stats:", Object.values(paladin.stats).reduce((a, b) => a + b, 0));
+console.log("CP:", calculateCP(paladin.stats));
+
+// Update UI to reflect initial game state
+updateUI();
 }
 
 // Event listeners for game controls (to be added to HTML)
 function setupGameControls() {
-    // Phase buttons
-    ['draw', 'movement', 'play', 'attack', 'end'].forEach(phase => {
-        const btn = document.getElementById(`${phase}-phase-btn`);
-        if (btn) {
-            btn.addEventListener('click', () => {
-                // Validate phase transition for human player
-                if (gameState.currentPlayer === 'playerA') {
-                    advancePhase('playerA');
-                }
-            });
-        }
-    });
-
-    // Optional draw button
-    const optionalDrawBtn = document.getElementById('optional-draw-btn');
-    if (optionalDrawBtn) {
-        optionalDrawBtn.addEventListener('click', () => {
-            optionalCardDraw('playerA');
+// Create phase buttons if they don't exist yet
+const phaseContainer = document.querySelector('.phase-controls');
+if (!phaseContainer) {
+    // Create phase controls container
+    const controlContainer = document.createElement('div');
+    controlContainer.className = 'phase-controls';
+    controlContainer.style.display = 'flex';
+    controlContainer.style.justifyContent = 'center';
+    controlContainer.style.margin = '15px 0';
+    
+    // Create buttons for each phase
+    const phases = ['draw', 'movement', 'play', 'attack', 'end'];
+    phases.forEach(phase => {
+        const btn = document.createElement('button');
+        btn.id = `${phase}-phase-btn`;
+        btn.className = 'phase-btn';
+        btn.textContent = phase.charAt(0).toUpperCase() + phase.slice(1);
+        btn.addEventListener('click', () => {
+            if (gameState.currentPlayer === 'playerA') {
+                advancePhase('playerA');
+            }
         });
-    }
+        controlContainer.appendChild(btn);
+    });
+    
+    // Add optional draw button
+    const optionalDrawBtn = document.createElement('button');
+    optionalDrawBtn.id = 'optional-draw-btn';
+    optionalDrawBtn.className = 'phase-btn optional-draw';
+    optionalDrawBtn.textContent = 'Draw Card (1 Coin)';
+    optionalDrawBtn.style.display = 'none';
+    optionalDrawBtn.addEventListener('click', () => {
+        optionalCardDraw('playerA');
+    });
+    controlContainer.appendChild(optionalDrawBtn);
+    
+    // Add cancel evolution button
+    const cancelEvolutionBtn = document.createElement('button');
+    cancelEvolutionBtn.id = 'cancel-evolution-btn';
+    cancelEvolutionBtn.className = 'phase-btn';
+    cancelEvolutionBtn.textContent = 'Cancel Evolution';
+    cancelEvolutionBtn.style.display = 'none';
+    cancelEvolutionBtn.style.backgroundColor = '#f44336';
+    cancelEvolutionBtn.addEventListener('click', cancelEvolution);
+    controlContainer.appendChild(cancelEvolutionBtn);
+    
+    // Add the controls to the game board
+    domElements.coinDisplay.parentNode.insertBefore(controlContainer, domElements.coinDisplay.nextSibling);
+}
 
-    // Cancel evolution button
-    const cancelEvolutionBtn = document.getElementById('cancel-evolution-btn');
-    if (cancelEvolutionBtn) {
-        cancelEvolutionBtn.addEventListener('click', cancelEvolution);
+// Add apprentice zones if they don't exist yet
+['playerA', 'playerB'].forEach(playerKey => {
+    const playerArea = document.getElementById(playerKey);
+    if (!document.getElementById(`${playerKey}Apprentice`)) {
+        const apprenticeZone = document.createElement('div');
+        apprenticeZone.id = `${playerKey}Apprentice`;
+        apprenticeZone.className = 'apprentice-zone';
+        
+        // Position after security for player A, before field for player B
+        if (playerKey === 'playerA') {
+            playerArea.insertBefore(apprenticeZone, document.getElementById(`${playerKey}Field`));
+        } else {
+            playerArea.insertBefore(apprenticeZone, document.getElementById(`${playerKey}Security`).nextSibling);
+        }
+        
+        // Update DOM elements reference
+        domElements[`${playerKey}Apprentice`] = apprenticeZone;
     }
+});
+}
+
+// Add CSS styles for new features
+function addNewStyles() {
+// Check if styles already exist
+if (document.getElementById('tcg-enhanced-styles')) return;
+
+const styleElement = document.createElement('style');
+styleElement.id = 'tcg-enhanced-styles';
+styleElement.textContent = `
+/* Evolution styles */
+.evolution-selection {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.evolve-button {
+    background-color: rgba(255, 215, 0, 0.8) !important;
+    color: black !important;
+    z-index: 10;
+    transition: all 0.2s ease;
+}
+
+.evolve-button:hover {
+    background-color: gold !important;
+    box-shadow: 0 0 5px gold;
+}
+
+/* Class type indicators */
+.card .class-type {
+    z-index: 10;
+}
+
+/* EXP stat styling */
+.card .stats .exp {
+    color: #ffcc00;
+    font-weight: bold;
+}
+
+/* Advanced class styling */
+.card.advanced {
+    border: 2px solid gold;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+}
+
+/* Evolved card indicator */
+.card .evolved-indicator {
+    position: absolute;
+    top: 20px;
+    width: 100%;
+    text-align: center;
+    color: gold;
+    text-shadow: 1px 1px 2px black;
+    font-weight: bold;
+    z-index: 10;
+}
+
+/* Evolution-ready card */
+.card.evolution-ready {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.card.evolution-ready:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 5px 15px rgba(255, 215, 0, 0.5);
+}
+
+/* Apprentice zone */
+.apprentice-zone {
+    background-color: rgba(255, 215, 0, 0.1);
+    border: 1px dashed gold;
+    padding: 10px;
+    margin: 10px 0;
+    min-height: 60px;
+    border-radius: 4px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+}
+`;
+
+document.head.appendChild(styleElement);
+}
+
+// Function to test the stat distribution algorithm
+function testStatDistribution() {
+console.log("--- Testing Stat Distribution ---");
+
+// Test basic class distribution
+const warrior = distributeStats('warrior', false);
+console.log("Basic Warrior:");
+console.log(warrior.stats);
+console.log("Total Stats:", Object.values(warrior.stats).reduce((a, b) => a + b, 0));
+console.log("CP:", calculateCP(warrior.stats));
+
+// Test advanced class distribution
+const paladin = distributeStats('paladin', true);
+console.log("Advanced Paladin:");
+console.log(paladin.stats);
+console.log("Total Stats:", Object.values(paladin.stats).reduce((a, b) => a + b, 0));
+console.log("CP:", calculateCP(paladin.stats));
+
+// Verify that all stats end in 0 or 5
+const allStatsValid = Object.values(paladin.stats).every(stat => stat % 5 === 0);
+console.log("All stats end in 0 or 5:", allStatsValid);
 }
 
 // Initialize game when page loads
 document.addEventListener('DOMContentLoaded', () => {
-    // Initialize deck builder and game state
-    deckBuilder.initialize();
-    initializeDomElements();
-    setupGameControls();
-    initializeGame();
+// Initialize deck builder and game state
+deckBuilder.initialize();
+initializeDomElements();
+setupGameControls();
+addNewStyles();
+initializeGame();
+
+// Test stat distribution
+// testStatDistribution();
 });
