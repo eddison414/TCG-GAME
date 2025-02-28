@@ -25,6 +25,7 @@ export class UIManager {
     
     if (!this.domElements.coinDisplay || 
         !this.domElements.playerAHand || 
+        this.domElements.playerAHand.innerHTML === undefined ||
         !this.domElements.playerAField) {
       console.error('Critical DOM elements missing. UI cannot be initialized.');
       return false;

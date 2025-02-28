@@ -382,8 +382,7 @@ export class BattleManager {
       };
     }
     
-    const deckManager = new DeckManager();
-    const advancedCard = deckManager.createCreatureWithStats(targetEvolution, true);
+    const advancedCard = this.gameManager.deckManager.createCreatureWithStats(targetEvolution, true);
     
     if (!advancedCard) {
       return {
