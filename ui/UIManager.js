@@ -1,5 +1,6 @@
 import { BattleManager } from '../managers/BattleManager.js';
 import { GAME_PHASES, PLAYERS, GAME_CONFIG } from '../constants.js';
+import { DialogRenderer } from './DialogRenderer.js';
 
 export class UIManager {
   constructor(gameManager) {
@@ -32,6 +33,7 @@ export class UIManager {
       return false;
     }
     
+    this.addStyles();
     return true;
   }
   
@@ -57,12 +59,16 @@ export class UIManager {
     
     this.gameManager.events.on('gameOver', (data) => {
       setTimeout(() => {
-        alert(`${data.winnerName} wins by ${data.reason}!`);
-        this.gameManager.initGame(
-          this.gameManager.players[PLAYERS.PLAYER_A],
-          this.gameManager.players[PLAYERS.PLAYER_B]
-        );
+        this.dialogRenderer.showGameOver({
+          winner: data.winnerName,
+          reason: data.reason,
+          gameManager: this.gameManager
+        });
       }, 1000);
+    });
+    
+    this.gameManager.events.on('cardDrawn', (data) => {
+      this.updateGameLog(`${this.gameManager.players[data.playerId].name} drew ${data.isApprentice ? 'an apprentice' : 'a card'}`);
     });
   }
   
@@ -122,6 +128,10 @@ export class UIManager {
         const apprenticeZone = document.createElement('div');
         apprenticeZone.id = `${playerKey}Apprentice`;
         apprenticeZone.className = 'apprentice-zone';
+        const zoneLabel = document.createElement('div');
+        zoneLabel.className = 'zone-label';
+        zoneLabel.textContent = 'Apprentice Zone';
+        apprenticeZone.appendChild(zoneLabel);
         
         if (playerKey === PLAYERS.PLAYER_A) {
           playerArea.insertBefore(apprenticeZone, document.getElementById(`${playerKey}Field`));
@@ -141,10 +151,30 @@ export class UIManager {
     this.domElements.coinDisplay.textContent = 
       `${currentPlayer.name}'s Coins: ${currentPlayer.coins} | Turn: ${gameState.turn} | Phase: ${gameState.currentPhase}`;
     
-    this.domElements.playerASecurity.textContent = 
-      `Security: ${gameState.players[PLAYERS.PLAYER_A].securityCount}`;
-    this.domElements.playerBSecurity.textContent = 
-      `Security: ${gameState.players[PLAYERS.PLAYER_B].securityCount}`;
+    this.domElements.playerASecurity.innerHTML = '';
+    this.domElements.playerBSecurity.innerHTML = '';
+    
+    const playerASecurityLabel = document.createElement('div');
+    playerASecurityLabel.className = 'zone-label';
+    playerASecurityLabel.textContent = 'Security';
+    this.domElements.playerASecurity.appendChild(playerASecurityLabel);
+    
+    const playerBSecurityLabel = document.createElement('div');
+    playerBSecurityLabel.className = 'zone-label';
+    playerBSecurityLabel.textContent = 'Security';
+    this.domElements.playerBSecurity.appendChild(playerBSecurityLabel);
+    
+    const playerASecurityCount = document.createElement('div');
+    playerASecurityCount.textContent = `Security Cards: ${gameState.players[PLAYERS.PLAYER_A].securityCount}`;
+    playerASecurityCount.style.textAlign = 'center';
+    playerASecurityCount.style.padding = '10px';
+    this.domElements.playerASecurity.appendChild(playerASecurityCount);
+    
+    const playerBSecurityCount = document.createElement('div');
+    playerBSecurityCount.textContent = `Security Cards: ${gameState.players[PLAYERS.PLAYER_B].securityCount}`;
+    playerBSecurityCount.style.textAlign = 'center';
+    playerBSecurityCount.style.padding = '10px';
+    this.domElements.playerBSecurity.appendChild(playerBSecurityCount);
     
     this.renderPlayerField(PLAYERS.PLAYER_A);
     this.renderPlayerField(PLAYERS.PLAYER_B);
@@ -156,8 +186,39 @@ export class UIManager {
     this.renderApprenticeZone(PLAYERS.PLAYER_B);
     
     this.updatePhaseButtons();
-    
     this.updateOptionalDrawButton();
+    this.updateGameLog();
+  }
+  
+  updateGameLog() {
+    if (!this.domElements.chatHistory) return;
+    
+    const gameState = this.gameManager.getState();
+    const logs = gameState.gameLog.slice(-20).reverse(); // Get last 20 logs, newest first
+    
+    this.domElements.chatHistory.innerHTML = '';
+    
+    logs.forEach(log => {
+      const logEntry = document.createElement('div');
+      logEntry.className = 'log-entry';
+      logEntry.style.marginBottom = '5px';
+      logEntry.style.borderBottom = '1px solid #eee';
+      logEntry.style.paddingBottom = '5px';
+      
+      const turnLabel = document.createElement('span');
+      turnLabel.className = 'turn-label';
+      turnLabel.textContent = `[Turn ${log.turn || '?'}] `;
+      turnLabel.style.fontWeight = 'bold';
+      turnLabel.style.color = '#666';
+      
+      const logMessage = document.createElement('span');
+      logMessage.textContent = log.message;
+      
+      logEntry.appendChild(turnLabel);
+      logEntry.appendChild(logMessage);
+      
+      this.domElements.chatHistory.appendChild(logEntry);
+    });
   }
   
   updatePhaseButtons() {
@@ -180,7 +241,10 @@ export class UIManager {
       }
     });
     
-    buttons[gameState.currentPhase]?.classList.add('active');
+    const currentPhaseBtn = buttons[gameState.currentPhase];
+    if (currentPhaseBtn) {
+      currentPhaseBtn.classList.add('active');
+    }
     
     const cancelEvolutionBtn = document.getElementById('cancel-evolution-btn');
     if (cancelEvolutionBtn) {
@@ -212,6 +276,11 @@ export class UIManager {
     if (!fieldElement) return;
     
     fieldElement.innerHTML = '';
+    
+    const fieldLabel = document.createElement('div');
+    fieldLabel.className = 'zone-label';
+    fieldLabel.textContent = 'Field';
+    fieldElement.appendChild(fieldLabel);
     
     const fieldLimitIndicator = document.createElement('div');
     fieldLimitIndicator.className = 'field-limit';
@@ -249,7 +318,7 @@ export class UIManager {
         const card = cardsAtPosition[0];
         const cardElement = this.createCardElement(card);
         
-        this.addCardInteractivity(cardElement, playerKey, card, 'field');
+        this.addCardInteractivity(cardElement, playerKey, card, 'field', player.field.indexOf(card));
         slot.appendChild(cardElement);
       }
       
@@ -274,11 +343,17 @@ export class UIManager {
     
     handElement.innerHTML = '';
     
+    const handLabel = document.createElement('div');
+    handLabel.className = 'zone-label';
+    handLabel.textContent = 'Hand';
+    handElement.appendChild(handLabel);
+    
     if (faceDown) {
       for (let i = 0; i < player.handCount; i++) {
         const cardElement = document.createElement('div');
         cardElement.className = 'card';
-        cardElement.style.backgroundImage = 'url(/Game/TCG-GAME/images/card_back.png)';
+        cardElement.style.backgroundColor = '#888';
+        cardElement.style.border = '1px solid #555';
         handElement.appendChild(cardElement);
       }
     } else {
@@ -305,7 +380,17 @@ export class UIManager {
     
     if (!apprenticeElement) return;
     
+    // Keep the zone label
+    const zoneLabel = apprenticeElement.querySelector('.zone-label');
     apprenticeElement.innerHTML = '';
+    if (zoneLabel) {
+      apprenticeElement.appendChild(zoneLabel);
+    } else {
+      const newLabel = document.createElement('div');
+      newLabel.className = 'zone-label';
+      newLabel.textContent = 'Apprentice Zone';
+      apprenticeElement.appendChild(newLabel);
+    }
     
     player.apprenticeZone.forEach((card, index) => {
       const cardElement = this.createCardElement(card);
@@ -338,7 +423,9 @@ export class UIManager {
       apprenticeElement.appendChild(limitIndicator);
     }
     
-    if (player.apprenticeZone.length === 0 && apprenticeElement.childElementCount === 0) {
+    if (player.apprenticeZone.length === 0 && 
+        !apprenticeElement.querySelector('.apprentice-draw-btn') && 
+        !apprenticeElement.querySelector('.apprentice-limit')) {
       const placeholderText = document.createElement('div');
       placeholderText.textContent = 'No apprentices in play';
       placeholderText.className = 'placeholder-text';
@@ -358,7 +445,6 @@ export class UIManager {
     if (card.image) {
       cardElement.style.backgroundImage = `url(${card.image})`;
     } else {
-      console.warn(`No image found for card: ${card.name}`);
       cardElement.style.background = `linear-gradient(135deg, #444, #666)`;
     }
     
@@ -373,7 +459,7 @@ export class UIManager {
     if (card.cp) {
       const cpElement = document.createElement('div');
       cpElement.className = 'cp';
-      cpElement.textContent = card.cp;
+      cpElement.textContent = `CP: ${card.cp}`;
       cardElement.appendChild(cpElement);
     }
     
@@ -402,7 +488,7 @@ export class UIManager {
       cardElement.title = card.effect;
     }
     
-if (card.type === 'apprentice' && card.passive) {
+    if (card.type === 'apprentice' && card.passive) {
       const passiveElement = document.createElement('div');
       passiveElement.className = 'passive';
       passiveElement.textContent = `Passive: +${card.passive.value} ${card.passive.stat}`;
@@ -671,42 +757,45 @@ if (card.type === 'apprentice' && card.passive) {
   }
   
   showPositionSelectionUI(playerKey, handIndex, isEvolution = false, apprentice = null) {
-    alert(`Position selection UI would show here for ${isEvolution ? 'evolution' : 'playing a creature'}`);
-    
     const player = this.gameManager.players[playerKey];
-    let position = 0;
+    const card = player.hand[handIndex];
+    const occupiedPositions = player.field.map(c => c.position);
     
-    for (let i = 0; i < 6; i++) {
-      if (!player.field.some(card => card.position === i)) {
-        position = i;
-        break;
-      }
-    }
-    
-    const result = player.playCard(handIndex, position, isEvolution, apprentice);
-    
-    if (result && result.success) {
-      if (result.effect === 'draw_card') {
-        this.gameManager.drawCard(playerKey);
-      }
+    // Use the Dialog Renderer to show position selection
+    this.dialogRenderer.showPositionSelection({
+      card: card,
+      positions: [0, 1, 2, 3, 4, 5], // Valid summon positions
+      occupiedPositions: occupiedPositions,
+      isEvolution: isEvolution
+    }).then(position => {
+      const result = player.playCard(handIndex, position, isEvolution, apprentice);
       
-      if (isEvolution) {
-        this.gameManager.state.evolution.isEvolutionMode = false;
-        this.gameManager.state.evolution.sourceCard = null;
-        this.gameManager.state.evolution.targetZone = null;
+      if (result && result.success) {
+        if (result.effect === 'draw_card') {
+          this.gameManager.drawCard(playerKey);
+        }
+        
+        if (isEvolution) {
+          this.gameManager.state.evolution.isEvolutionMode = false;
+          this.gameManager.state.evolution.sourceCard = null;
+          this.gameManager.state.evolution.targetZone = null;
+        }
+        
+        this.gameManager.logger.log(result.message, { turn: this.gameManager.state.turn });
+        this.gameManager.events.emit('stateChanged');
+      } else if (result) {
+        this.dialogRenderer.showDialog({
+          title: 'Action Failed',
+          content: result.message,
+          buttons: [{ text: 'OK', primary: true }]
+        });
       }
-      
-      this.gameManager.logger.log(result.message, { turn: this.gameManager.state.turn });
-      
-      this.gameManager.events.emit('stateChanged');
-    } else if (result) {
-      alert(result.message);
-    }
+    }).catch(error => {
+      console.log('Position selection cancelled:', error);
+    });
   }
   
   showSpellTargetSelectionUI(playerKey, handIndex) {
-    alert("Spell target selection UI would show here");
-    
     const gameState = this.gameManager.getState();
     const spellCard = gameState.players[playerKey].hand[handIndex];
     
@@ -718,109 +807,203 @@ if (card.type === 'apprentice' && card.passive) {
     const targetPlayer = this.gameManager.players[targetPlayerId];
     
     if (targetPlayer.field.length === 0) {
-      alert(`No valid targets for ${spellCard.name}`);
+      this.dialogRenderer.showDialog({
+        title: 'No Targets',
+        content: `No valid targets for ${spellCard.name}`,
+        buttons: [{ text: 'OK', primary: true }]
+      });
       return;
     }
     
-    const battleManager = new BattleManager(this.gameManager);
-    const result = battleManager.executeSpell(playerKey, handIndex, targetPlayerId, 0);
-    
-    if (result && result.success) {
-      result.messages.forEach(message => {
-        this.gameManager.logger.log(message, { turn: this.gameManager.state.turn });
-      });
+    this.dialogRenderer.showSpellTargetSelection({
+      spell: spellCard,
+      targets: targetPlayer.field,
+      playerName: targetPlayer.name
+    }).then(selection => {
+      const battleManager = new BattleManager(this.gameManager);
+      const result = battleManager.executeSpell(
+        playerKey, handIndex, targetPlayerId, selection.index
+      );
       
-      this.gameManager.events.emit('stateChanged');
-    } else if (result) {
-      alert(result.message);
-    }
+      if (result && result.success) {
+        result.messages.forEach(message => {
+          this.gameManager.logger.log(message, { turn: this.gameManager.state.turn });
+        });
+        
+        this.gameManager.events.emit('stateChanged');
+      } else if (result) {
+        this.dialogRenderer.showDialog({
+          title: 'Spell Failed',
+          content: result.message,
+          buttons: [{ text: 'OK', primary: true }]
+        });
+      }
+    }).catch(error => {
+      console.log('Spell target selection cancelled:', error);
+    });
   }
   
   showMovementSelectionUI(playerKey, cardIndex) {
-    alert("Movement selection UI would show here");
-    
     const player = this.gameManager.players[playerKey];
+    const card = player.field[cardIndex];
     const validPositions = player.getValidMovementPositions(cardIndex);
     
     if (validPositions.length === 0) {
-      alert("No valid movement positions available");
+      this.dialogRenderer.showDialog({
+        title: 'Movement Failed',
+        content: "No valid movement positions available",
+        buttons: [{ text: 'OK', primary: true }]
+      });
       return;
     }
     
-    const result = player.moveCreature(cardIndex, validPositions[0]);
-    
-    if (result && result.success) {
-      this.gameManager.logger.log(result.message, { turn: this.gameManager.state.turn });
-      this.gameManager.events.emit('stateChanged');
-    } else if (result) {
-      alert(result.message);
-    }
+    this.dialogRenderer.showMovementSelection({
+      card: card,
+      validPositions: validPositions,
+      movementCost: GAME_CONFIG.MOVEMENT_COST
+    }).then(position => {
+      const result = player.moveCreature(cardIndex, position);
+      
+      if (result && result.success) {
+        this.gameManager.logger.log(result.message, { turn: this.gameManager.state.turn });
+        this.gameManager.events.emit('stateChanged');
+      } else if (result) {
+        this.dialogRenderer.showDialog({
+          title: 'Movement Failed',
+          content: result.message,
+          buttons: [{ text: 'OK', primary: true }]
+        });
+      }
+    }).catch(error => {
+      console.log('Movement selection cancelled:', error);
+    });
   }
   
   showTargetSelectionUI(playerKey, attackerIndex, validTargets, canAttackDirectly) {
-    alert("Attack target selection UI would show here");
+    const player = this.gameManager.players[playerKey];
+    const attacker = player.field[attackerIndex];
     
-    const battleManager = new BattleManager(this.gameManager);
-    const opponentId = playerKey === PLAYERS.PLAYER_A ? PLAYERS.PLAYER_B : PLAYERS.PLAYER_A;
-    
-    if (validTargets.length > 0) {
-      const targetCard = validTargets[0];
-      const targetIndex = this.gameManager.players[opponentId].field.findIndex(
-        card => card.id === targetCard.id
-      );
+    this.dialogRenderer.showTargetSelection({
+      attacker: attacker,
+      validTargets: validTargets,
+      canAttackDirectly: canAttackDirectly
+    }).then(selection => {
+      const battleManager = new BattleManager(this.gameManager);
+      const opponentId = playerKey === PLAYERS.PLAYER_A ? PLAYERS.PLAYER_B : PLAYERS.PLAYER_A;
       
-      const result = battleManager.attackCreature(playerKey, attackerIndex, opponentId, targetIndex);
-      
-      if (result && result.success) {
-        result.messages.forEach(message => {
-          this.gameManager.logger.log(message, { turn: this.gameManager.state.turn });
-        });
+      if (selection.type === 'creature') {
+        const targetCard = selection.target;
+        const targetIndex = this.gameManager.players[opponentId].field.findIndex(
+          card => card.id === targetCard.id
+        );
         
-        this.gameManager.events.emit('stateChanged');
-      }
-    } else if (canAttackDirectly) {
-      const result = battleManager.attackSecurityDirectly(playerKey, attackerIndex);
-      
-      if (result && result.success) {
-        result.messages.forEach(message => {
-          this.gameManager.logger.log(message, { turn: this.gameManager.state.turn });
-        });
+        const result = battleManager.attackCreature(playerKey, attackerIndex, opponentId, targetIndex);
         
-        if (result.gameOver) {
-          this.gameManager.endGame(result.winner, 'security');
+        if (result && result.success) {
+          result.messages.forEach(message => {
+            this.gameManager.logger.log(message, { turn: this.gameManager.state.turn });
+          });
+          
+          this.gameManager.events.emit('stateChanged');
         }
+      } else if (selection.type === 'security') {
+        const result = battleManager.attackSecurityDirectly(playerKey, attackerIndex);
         
-        this.gameManager.events.emit('stateChanged');
+        if (result && result.success) {
+          result.messages.forEach(message => {
+            this.gameManager.logger.log(message, { turn: this.gameManager.state.turn });
+          });
+          
+          if (result.gameOver) {
+            this.gameManager.endGame(result.winner, 'security');
+          }
+          
+          this.gameManager.events.emit('stateChanged');
+        }
       }
-    } else {
-      alert("No valid targets for attack");
-    }
+    }).catch(error => {
+      console.log('Attack target selection cancelled:', error);
+    });
   }
   
   showEvolutionUI(playerKey, cardIndex) {
-    alert("Evolution selection UI would show here");
-    
     const player = this.gameManager.players[playerKey];
     const card = player.field[cardIndex];
     
     if (!card.possibleEvolutions || card.possibleEvolutions.length === 0) {
-      alert("No evolution paths available");
+      this.dialogRenderer.showDialog({
+        title: 'Evolution Error',
+        content: "No evolution paths available",
+        buttons: [{ text: 'OK', primary: true }]
+      });
       return;
     }
     
-    const battleManager = new BattleManager(this.gameManager);
-    const result = battleManager.evolveCard(playerKey, cardIndex, card.possibleEvolutions[0]);
+    // Fetch the evolution options from the database
+    const evolutions = card.possibleEvolutions.map(evolId => {
+      return this.gameManager.deckManager.CARD_DATABASE.find(c => c.templateId === evolId);
+    }).filter(Boolean);
     
-    if (result && result.success) {
-      this.gameManager.logger.log(result.message, { turn: this.gameManager.state.turn });
-      this.gameManager.events.emit('stateChanged');
-    } else if (result) {
-      alert(result.message);
-    }
+    this.dialogRenderer.showEvolutionSelection({
+      card: card,
+      evolutions: evolutions,
+      playerCoins: player.coins
+    }).then(evolutionId => {
+      const battleManager = new BattleManager(this.gameManager);
+      const result = battleManager.evolveCard(playerKey, cardIndex, evolutionId);
+      
+      if (result && result.success) {
+        this.gameManager.logger.log(result.message, { turn: this.gameManager.state.turn });
+        this.gameManager.events.emit('stateChanged');
+      } else if (result) {
+        this.dialogRenderer.showDialog({
+          title: 'Evolution Failed',
+          content: result.message,
+          buttons: [{ text: 'OK', primary: true }]
+        });
+      }
+    }).catch(error => {
+      console.log('Evolution selection cancelled:', error);
+    });
   }
   
   triggerAIAction() {
-    this.gameManager.advancePhase();
+    // AI moves are handled by AIManager
+  }
+  
+  updateGameLog(message) {
+    if (message && this.gameManager) {
+      this.gameManager.logger.log(message, { turn: this.gameManager.state.turn });
+    }
+    
+    if (!this.domElements.chatHistory) return;
+    
+    const gameState = this.gameManager.getState();
+    const logs = gameState.gameLog.slice(-20).reverse(); // Get last 20 logs, newest first
+    
+    this.domElements.chatHistory.innerHTML = '';
+    
+    logs.forEach(log => {
+      const logEntry = document.createElement('div');
+      logEntry.className = 'log-entry';
+      logEntry.style.marginBottom = '5px';
+      logEntry.style.borderBottom = '1px solid #eee';
+      logEntry.style.paddingBottom = '5px';
+      
+      const turnLabel = document.createElement('span');
+      turnLabel.className = 'turn-label';
+      turnLabel.textContent = `[Turn ${log.turn || '?'}] `;
+      turnLabel.style.fontWeight = 'bold';
+      turnLabel.style.color = '#666';
+      
+      const logMessage = document.createElement('span');
+      logMessage.textContent = log.message;
+      
+      logEntry.appendChild(turnLabel);
+      logEntry.appendChild(logMessage);
+      
+      this.domElements.chatHistory.appendChild(logEntry);
+    });
   }
   
   addStyles() {
@@ -836,14 +1019,29 @@ if (card.type === 'apprentice' && card.passive) {
         cursor: pointer;
       }
       
+      .card.playable:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+      }
+      
       .card.attackable {
         border: 2px solid #f44336;
         cursor: pointer;
       }
       
+      .card.attackable:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 15px rgba(244, 67, 54, 0.3);
+      }
+      
       .card.movable {
         border: 2px solid #2196f3;
         cursor: pointer;
+      }
+      
+      .card.movable:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 15px rgba(33, 150, 243, 0.3);
       }
       
       .card.exhausted {
@@ -860,6 +1058,29 @@ if (card.type === 'apprentice' && card.passive) {
       .card:not(.disabled):hover {
         transform: translateY(-5px);
         box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+      }
+      
+      .placeholder-text {
+        color: #999;
+        font-style: italic;
+        text-align: center;
+        padding: 20px;
+      }
+      
+      .log-entry {
+        padding: 5px 0;
+        border-bottom: 1px solid #eee;
+      }
+      
+      .zone-label {
+        position: absolute;
+        top: -10px;
+        left: 10px;
+        padding: 0 5px;
+        background-color: white;
+        font-size: 12px;
+        color: #666;
+        z-index: 1;
       }
     `;
     
