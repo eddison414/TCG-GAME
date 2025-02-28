@@ -16,8 +16,14 @@ export class EventEmitter {
   }
   
   emit(event, data) {
-    if (this.events[event]) {
-      this.events[event].forEach(listener => listener(data));
+    try {
+      if (this.events[event]) {
+        this.events[event].forEach(listener => listener(data));
+      }
+      return true;
+    } catch (error) {
+      console.error(`Error emitting ${event}:`, error);
+      return false;
     }
   }
   

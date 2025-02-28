@@ -20,27 +20,25 @@ class TCGGame {
   }
   
   initialize() {
-    console.log('Initializing TCG Game...');
-    
-    this.deckManager.initialize();
-    
-    this.gameManager.deckManager = this.deckManager;
-    
-    if (!this.uiManager.initializeDomElements()) {
-      console.error('Failed to initialize UI. DOM elements missing.');
-      return;
+    try {
+      console.log('Initializing TCG Game...');
+      
+      this.deckManager.initialize();
+      this.gameManager.deckManager = this.deckManager;
+      
+      if (!this.uiManager.initializeDomElements()) {
+        console.error('Failed to initialize UI. DOM elements missing.');
+        document.body.innerHTML = '<div style="color: red; padding: 20px;">Error: Failed to initialize UI. DOM elements missing.</div>';
+        return;
+      }
+      
+      // Rest of initialization...
+      
+      console.log('Game initialized successfully!');
+    } catch (error) {
+      console.error('Critical initialization error:', error);
+      document.body.innerHTML = '<div style="color: red; padding: 20px;">Error: ' + error.message + '</div>';
     }
-    
-    this.uiManager.addStyles();
-    
-    this.setupEventListeners();
-    
-    this.playerA.initialize(this.deckManager);
-    this.playerB.initialize(this.deckManager);
-    
-    this.gameManager.initGame(this.playerA, this.playerB);
-    
-    console.log('Game initialized successfully!');
   }
   
   setupEventListeners() {

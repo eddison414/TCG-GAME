@@ -53,8 +53,8 @@ export const PLAYERS = {
 };
 
 export const ASSETS = {
-  IMAGES_PATH: 'images/',
-  CARD_BACK: 'images/card_back.png'
+  IMAGES_PATH: '/images/', 
+  CARD_BACK: '/images/card_back.png' 
 };
 
 export const POSITION_CONFIG = {

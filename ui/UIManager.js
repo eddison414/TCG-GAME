@@ -5,6 +5,7 @@ export class UIManager {
   constructor(gameManager) {
     this.gameManager = gameManager;
     this.domElements = {};
+    this.dialogRenderer = new DialogRenderer(); 
     
     this.setupEventListeners();
   }
