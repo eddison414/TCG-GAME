@@ -1,18 +1,8 @@
-/**
- * ui/DialogRenderer.js
- * Handles rendering of modal dialogs for user interaction
- */
 export class DialogRenderer {
   constructor() {
-    // Track active dialogs
     this.activeDialog = null;
   }
   
-  /**
-   * Create and show a modal dialog
-   * @param {object} options - Dialog options
-   * @returns {HTMLElement} The dialog container element
-   */
   showDialog(options) {
     const {
       title = '',
@@ -24,10 +14,8 @@ export class DialogRenderer {
       className = ''
     } = options;
     
-    // Close any existing dialog first
     this.closeDialog();
     
-    // Create modal overlay
     const modalOverlay = document.createElement('div');
     modalOverlay.className = 'modal-overlay';
     modalOverlay.style.position = 'fixed';
@@ -41,7 +29,6 @@ export class DialogRenderer {
     modalOverlay.style.alignItems = 'center';
     modalOverlay.style.zIndex = '1000';
     
-    // Create dialog container
     const dialogContainer = document.createElement('div');
     dialogContainer.className = `dialog-container ${className}`;
     dialogContainer.style.backgroundColor = 'white';
@@ -53,7 +40,6 @@ export class DialogRenderer {
     dialogContainer.style.boxShadow = '0 5px 15px rgba(0, 0, 0, 0.5)';
     dialogContainer.style.position = 'relative';
     
-    // Add close button
     const closeButton = document.createElement('button');
     closeButton.textContent = '×';
     closeButton.className = 'dialog-close-btn';
@@ -73,16 +59,14 @@ export class DialogRenderer {
     
     dialogContainer.appendChild(closeButton);
     
-    // Add title
     if (title) {
       const titleElement = document.createElement('h2');
       titleElement.textContent = title;
       titleElement.style.margin = '0 0 20px 0';
-      titleElement.style.paddingRight = '20px'; // Make room for close button
+      titleElement.style.paddingRight = '20px';
       dialogContainer.appendChild(titleElement);
     }
     
-    // Add content
     if (typeof content === 'string') {
       const contentElement = document.createElement('div');
       contentElement.className = 'dialog-content';
@@ -93,7 +77,6 @@ export class DialogRenderer {
       dialogContainer.appendChild(content);
     }
     
-    // Add buttons
     if (buttons.length > 0) {
       const buttonContainer = document.createElement('div');
       buttonContainer.className = 'dialog-buttons';
@@ -111,7 +94,6 @@ export class DialogRenderer {
         button.style.border = 'none';
         button.style.cursor = 'pointer';
         
-        // Default styling
         if (buttonConfig.primary) {
           button.style.backgroundColor = '#4a90e2';
           button.style.color = 'white';
@@ -120,7 +102,6 @@ export class DialogRenderer {
           button.style.color = '#333';
         }
         
-        // Apply custom styles
         if (buttonConfig.style) {
           Object.assign(button.style, buttonConfig.style);
         }
@@ -141,21 +122,15 @@ export class DialogRenderer {
       dialogContainer.appendChild(buttonContainer);
     }
     
-    // Add to modal overlay
     modalOverlay.appendChild(dialogContainer);
     
-    // Add to document
     document.body.appendChild(modalOverlay);
     
-    // Save reference to active dialog
     this.activeDialog = modalOverlay;
     
     return dialogContainer;
   }
   
-  /**
-   * Close the active dialog
-   */
   closeDialog() {
     if (this.activeDialog && document.body.contains(this.activeDialog)) {
       document.body.removeChild(this.activeDialog);
@@ -163,11 +138,6 @@ export class DialogRenderer {
     }
   }
   
-  /**
-   * Show a position selection dialog for a card
-   * @param {object} options - Options for the position selection
-   * @returns {Promise} Resolves with the selected position
-   */
   showPositionSelection(options) {
     const {
       card,
@@ -177,10 +147,8 @@ export class DialogRenderer {
     } = options;
     
     return new Promise((resolve, reject) => {
-      // Create content element
       const content = document.createElement('div');
       
-      // Add note about position limitations
       const positionNote = document.createElement('p');
       positionNote.textContent = 'Creatures can only be summoned in positions 0-5. Positions 6-8 can only be reached by movement.';
       positionNote.style.color = '#1976d2';
@@ -188,7 +156,6 @@ export class DialogRenderer {
       positionNote.style.marginBottom = '15px';
       content.appendChild(positionNote);
       
-      // Create battlefield grid visualization in 3x3 format
       const gridContainer = document.createElement('div');
       gridContainer.style.display = 'grid';
       gridContainer.style.gridTemplateColumns = 'repeat(3, 1fr)';
@@ -198,7 +165,6 @@ export class DialogRenderer {
       gridContainer.style.width = '300px';
       gridContainer.style.height = '300px';
       
-      // Create cells for each position (0-8)
       for (let pos = 0; pos < 9; pos++) {
         const cell = document.createElement('div');
         cell.style.border = '1px solid #ccc';
@@ -208,7 +174,6 @@ export class DialogRenderer {
         cell.style.alignItems = 'center';
         cell.style.position = 'relative';
         
-        // Add position label
         const posLabel = document.createElement('div');
         posLabel.textContent = `Pos ${pos}`;
         posLabel.style.position = 'absolute';
@@ -218,13 +183,11 @@ export class DialogRenderer {
         posLabel.style.color = '#666';
         cell.appendChild(posLabel);
         
-        // Check if the position is valid for summoning
         const isValidPosition = positions.includes(pos);
         const isOccupied = occupiedPositions.includes(pos);
         
         if (isValidPosition) {
           if (isOccupied) {
-            // Position is occupied
             cell.style.backgroundColor = 'rgba(255, 0, 0, 0.1)';
             
             const occupiedLabel = document.createElement('div');
@@ -243,14 +206,12 @@ export class DialogRenderer {
             replaceLabel.style.textAlign = 'center';
             cell.appendChild(replaceLabel);
             
-            // Can click to replace
             cell.style.cursor = 'pointer';
             cell.onclick = () => {
               this.closeDialog();
               resolve(pos);
             };
           } else {
-            // Position is open
             cell.style.backgroundColor = 'rgba(76, 175, 80, 0.2)';
             cell.style.border = '2px dashed #4caf50';
             cell.style.cursor = 'pointer';
@@ -261,14 +222,12 @@ export class DialogRenderer {
             emptyLabel.style.color = '#4caf50';
             cell.appendChild(emptyLabel);
             
-            // Click to place
             cell.onclick = () => {
               this.closeDialog();
               resolve(pos);
             };
           }
         } else {
-          // Positions not valid for initial placement
           cell.style.backgroundColor = 'rgba(0, 0, 0, 0.05)';
           cell.style.opacity = '0.6';
           
@@ -284,7 +243,6 @@ export class DialogRenderer {
       
       content.appendChild(gridContainer);
       
-      // Show the dialog
       this.showDialog({
         title: isEvolution 
           ? `Select a position for evolved ${card.name}` 
@@ -302,11 +260,6 @@ export class DialogRenderer {
     });
   }
   
-  /**
-   * Show a target selection dialog for attacking
-   * @param {object} options - Options for the target selection
-   * @returns {Promise} Resolves with the selected target
-   */
   showTargetSelection(options) {
     const {
       attacker,
@@ -315,10 +268,8 @@ export class DialogRenderer {
     } = options;
     
     return new Promise((resolve, reject) => {
-      // Create content element
       const content = document.createElement('div');
       
-      // Show attacker info
       const attackerInfo = document.createElement('div');
       attackerInfo.style.margin = '10px 0';
       attackerInfo.style.padding = '10px';
@@ -327,7 +278,6 @@ export class DialogRenderer {
       attackerInfo.innerHTML = `<strong>Attacker:</strong> ${attacker.name} (${attacker.cp} CP) | Range: ${attacker.attackRange} | Position: ${attacker.position}`;
       content.appendChild(attackerInfo);
       
-      // Create targets container
       const targetsGrid = document.createElement('div');
       targetsGrid.style.display = 'flex';
       targetsGrid.style.flexWrap = 'wrap';
@@ -335,7 +285,6 @@ export class DialogRenderer {
       targetsGrid.style.gap = '10px';
       targetsGrid.style.margin = '20px 0';
       
-      // If there are valid targets, show them
       if (validTargets.length > 0) {
         validTargets.forEach((target, index) => {
           const targetCard = document.createElement('div');
@@ -348,7 +297,6 @@ export class DialogRenderer {
           targetCard.style.position = 'relative';
           targetCard.style.overflow = 'hidden';
           
-          // Card info
           const cardInfo = document.createElement('div');
           cardInfo.style.position = 'absolute';
           cardInfo.style.bottom = '0';
@@ -365,13 +313,11 @@ export class DialogRenderer {
           `;
           targetCard.appendChild(cardInfo);
           
-          // When a target is clicked, attack it
           targetCard.onclick = () => {
             this.closeDialog();
             resolve({ target, type: 'creature', index });
           };
           
-          // Add highlight on hover
           targetCard.onmouseover = () => {
             targetCard.style.borderColor = '#f44336';
             targetCard.style.boxShadow = '0 0 10px rgba(244, 67, 54, 0.5)';
@@ -385,7 +331,6 @@ export class DialogRenderer {
           targetsGrid.appendChild(targetCard);
         });
       } else {
-        // No targets message
         const noTargetsMsg = document.createElement('div');
         noTargetsMsg.textContent = 'No valid targets in range.';
         noTargetsMsg.style.color = '#f44336';
@@ -396,7 +341,6 @@ export class DialogRenderer {
       
       content.appendChild(targetsGrid);
       
-      // Add direct attack option if allowed
       if (canAttackDirectly) {
         const directAttackInfo = document.createElement('div');
         directAttackInfo.style.margin = '15px 0';
@@ -426,7 +370,6 @@ export class DialogRenderer {
         content.appendChild(directAttackBtn);
       }
       
-      // Show the dialog
       this.showDialog({
         title: `Select a target for ${attacker.name} to attack`,
         content,
@@ -442,11 +385,6 @@ export class DialogRenderer {
     });
   }
   
-  /**
-   * Show a spell target selection dialog
-   * @param {object} options - Options for the spell target selection
-   * @returns {Promise} Resolves with the selected target
-   */
   showSpellTargetSelection(options) {
     const {
       spell,
@@ -455,10 +393,8 @@ export class DialogRenderer {
     } = options;
     
     return new Promise((resolve, reject) => {
-      // Create content element
       const content = document.createElement('div');
       
-      // Add spell info
       const spellInfo = document.createElement('div');
       spellInfo.style.margin = '10px 0';
       spellInfo.style.padding = '10px';
@@ -467,7 +403,6 @@ export class DialogRenderer {
       spellInfo.innerHTML = `<p>${spell.effect}</p>`;
       content.appendChild(spellInfo);
       
-      // Create targets grid
       const targetsGrid = document.createElement('div');
       targetsGrid.style.display = 'flex';
       targetsGrid.style.flexWrap = 'wrap';
@@ -475,7 +410,6 @@ export class DialogRenderer {
       targetsGrid.style.gap = '10px';
       targetsGrid.style.margin = '20px 0';
       
-      // If there are valid targets, show them
       if (targets.length > 0) {
         targets.forEach((target, index) => {
           const targetCard = document.createElement('div');
@@ -488,7 +422,6 @@ export class DialogRenderer {
           targetCard.style.position = 'relative';
           targetCard.style.overflow = 'hidden';
           
-          // Card info
           const cardInfo = document.createElement('div');
           cardInfo.style.position = 'absolute';
           cardInfo.style.bottom = '0';
@@ -505,13 +438,11 @@ export class DialogRenderer {
           `;
           targetCard.appendChild(cardInfo);
           
-          // When a target is clicked, cast spell on it
           targetCard.onclick = () => {
             this.closeDialog();
             resolve({ target, index });
           };
           
-          // Add highlight on hover with color based on spell type
           const isOffensive = spell.templateId === 'fireball';
           
           targetCard.onmouseover = () => {
@@ -529,7 +460,6 @@ export class DialogRenderer {
           targetsGrid.appendChild(targetCard);
         });
       } else {
-        // No targets message
         const noTargetsMsg = document.createElement('div');
         noTargetsMsg.textContent = `No valid targets for ${spell.name}.`;
         noTargetsMsg.style.color = '#f44336';
@@ -540,7 +470,6 @@ export class DialogRenderer {
       
       content.appendChild(targetsGrid);
       
-      // Show the dialog
       this.showDialog({
         title: `Select a target for ${spell.name}`,
         content,
@@ -556,11 +485,6 @@ export class DialogRenderer {
     });
   }
   
-  /**
-   * Show evolution selection dialog
-   * @param {object} options - Options for the evolution selection
-   * @returns {Promise} Resolves with the selected evolution
-   */
   showEvolutionSelection(options) {
     const {
       card,
@@ -569,16 +493,13 @@ export class DialogRenderer {
     } = options;
     
     return new Promise((resolve, reject) => {
-      // Create content element
       const content = document.createElement('div');
       
-      // Add description
       const description = document.createElement('p');
       description.textContent = 'Evolution transforms a basic class into an advanced class with enhanced stats and abilities.';
       description.style.marginBottom = '20px';
       content.appendChild(description);
       
-      // Create options container
       const optionsContainer = document.createElement('div');
       optionsContainer.style.display = 'flex';
       optionsContainer.style.flexWrap = 'wrap';
@@ -586,7 +507,6 @@ export class DialogRenderer {
       optionsContainer.style.gap = '20px';
       optionsContainer.style.marginBottom = '20px';
       
-      // Add each evolution option
       evolutions.forEach(evolution => {
         const option = document.createElement('div');
         option.className = 'evolution-option';
@@ -597,14 +517,12 @@ export class DialogRenderer {
         option.style.backgroundColor = '#f8f8f8';
         option.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
         
-        // Create option content
         const optionName = document.createElement('h4');
         optionName.textContent = evolution.name;
         optionName.style.marginBottom = '10px';
         optionName.style.color = '#333';
         option.appendChild(optionName);
         
-        // Add stat preview
         const statPreview = document.createElement('div');
         statPreview.style.marginBottom = '10px';
         statPreview.style.fontSize = '12px';
@@ -617,7 +535,6 @@ export class DialogRenderer {
         `;
         option.appendChild(statPreview);
         
-        // Add ability if any
         if (evolution.ability) {
           const abilityText = document.createElement('div');
           abilityText.textContent = `Ability: ${evolution.ability}`;
@@ -627,10 +544,8 @@ export class DialogRenderer {
           option.appendChild(abilityText);
         }
         
-        // Calculate evolution cost
         const evolutionCost = Math.max(0, evolution.cost - 1);
         
-        // Add evolution cost
         const costText = document.createElement('div');
         costText.textContent = `Evolution Cost: ${evolutionCost} coins`;
         costText.style.fontSize = '12px';
@@ -638,7 +553,6 @@ export class DialogRenderer {
         costText.style.color = playerCoins >= evolutionCost ? '#007700' : '#cc0000';
         option.appendChild(costText);
         
-        // Add select button
         const selectButton = document.createElement('button');
         selectButton.textContent = 'Select';
         selectButton.style.marginTop = '10px';
@@ -651,7 +565,6 @@ export class DialogRenderer {
         selectButton.disabled = playerCoins < evolutionCost;
         selectButton.style.opacity = playerCoins >= evolutionCost ? '1' : '0.5';
         
-        // Evolution on click
         selectButton.onclick = () => {
           if (playerCoins >= evolutionCost) {
             this.closeDialog();
@@ -660,7 +573,6 @@ export class DialogRenderer {
         };
         option.appendChild(selectButton);
         
-        // Highlight option on hover
         option.onmouseover = () => {
           if (playerCoins >= evolutionCost) {
             option.style.boxShadow = '0 6px 12px rgba(255, 204, 0, 0.4)';
@@ -678,7 +590,6 @@ export class DialogRenderer {
       
       content.appendChild(optionsContainer);
       
-      // Show the dialog
       this.showDialog({
         title: `Select an evolution path for ${card.name}`,
         content,
@@ -694,11 +605,6 @@ export class DialogRenderer {
     });
   }
   
-  /**
-   * Show a movement selection dialog
-   * @param {object} options - Options for the movement selection
-   * @returns {Promise} Resolves with the selected position
-   */
   showMovementSelection(options) {
     const {
       card,
@@ -707,16 +613,13 @@ export class DialogRenderer {
     } = options;
     
     return new Promise((resolve, reject) => {
-      // Create content element
       const content = document.createElement('div');
       
-      // Add cost info
       const costInfo = document.createElement('p');
       costInfo.textContent = `Movement cost: ${movementCost} coins`;
       costInfo.style.fontWeight = 'bold';
       content.appendChild(costInfo);
       
-      // Create the grid visualization
       const gridContainer = document.createElement('div');
       gridContainer.style.display = 'grid';
       gridContainer.style.gridTemplateColumns = 'repeat(3, 1fr)';
@@ -726,7 +629,6 @@ export class DialogRenderer {
       gridContainer.style.width = '300px';
       gridContainer.style.height = '300px';
       
-      // Create cells for each position
       for (let pos = 0; pos < 9; pos++) {
         const cell = document.createElement('div');
         cell.style.border = '1px solid #ccc';
@@ -736,7 +638,6 @@ export class DialogRenderer {
         cell.style.alignItems = 'center';
         cell.style.position = 'relative';
         
-        // Highlight current position
         if (pos === card.position) {
           cell.style.backgroundColor = '#f0f0f0';
           cell.style.border = '2px solid #333';
@@ -749,7 +650,6 @@ export class DialogRenderer {
           
           cell.appendChild(cardIndicator);
         }
-        // Highlight valid movement targets
         else if (validPositions.includes(pos)) {
           cell.style.backgroundColor = 'rgba(76, 175, 80, 0.2)';
           cell.style.border = '2px dashed #4caf50';
@@ -762,7 +662,6 @@ export class DialogRenderer {
           
           cell.appendChild(moveLabel);
           
-          // Add click event
           cell.onclick = () => {
             this.closeDialog();
             resolve(pos);
@@ -774,7 +673,6 @@ export class DialogRenderer {
           cell.style.fontSize = '12px';
         }
         
-        // Add position label
         const posLabel = document.createElement('div');
         posLabel.textContent = `Pos ${pos}`;
         posLabel.style.position = 'absolute';
@@ -789,7 +687,6 @@ export class DialogRenderer {
       
       content.appendChild(gridContainer);
       
-      // Show the dialog
       this.showDialog({
         title: `Select movement destination for ${card.name}`,
         content,
@@ -805,11 +702,6 @@ export class DialogRenderer {
     });
   }
   
-  /**
-   * Show a game over dialog
-   * @param {object} options - Options for the game over dialog
-   * @returns {Promise} Resolves when the dialog is closed
-   */
   showGameOver(options) {
     const {
       winner,
@@ -818,23 +710,19 @@ export class DialogRenderer {
     } = options;
     
     return new Promise((resolve) => {
-      // Create content element
       const content = document.createElement('div');
       content.style.textAlign = 'center';
       
-      // Add winner announcement
       const winnerText = document.createElement('h3');
       winnerText.textContent = `${winner} wins!`;
       winnerText.style.marginBottom = '10px';
       content.appendChild(winnerText);
       
-      // Add reason
       const reasonText = document.createElement('p');
       reasonText.textContent = `Reason: ${reason}`;
       reasonText.style.marginBottom = '20px';
       content.appendChild(reasonText);
       
-      // Show the dialog
       this.showDialog({
         title: 'Game Over',
         content,

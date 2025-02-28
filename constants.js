@@ -1,29 +1,20 @@
-/**
- * constants.js
- * Central location for all game constants and configuration
- */
-
-// Card Types
 export const CARD_TYPES = {
   CREATURE: 'creature',
   SPELL: 'spell',
   APPRENTICE: 'apprentice'
 };
 
-// Class Types
 export const CLASS_TYPES = {
   BASIC: 'basic',
   ADVANCED: 'advanced'
 };
 
-// Evolution Paths
 export const EVOLUTION_PATHS = {
   'warrior': ['paladin', 'knight'],
   'mage': ['wizard', 'priest'],
   'rogue': ['assassin', 'archer']
 };
 
-// Game Phases
 export const GAME_PHASES = {
   DRAW: 'draw',
   MOVEMENT: 'movement',
@@ -32,24 +23,22 @@ export const GAME_PHASES = {
   END: 'end'
 };
 
-// Game Constants
 export const GAME_CONFIG = {
-  MAX_CREATURES: 6,          // Maximum creatures per player
-  MAX_FIELD_SLOTS: 9,        // Total slots in the field (3x3 grid)
-  MAX_APPRENTICES: 3,        // Maximum apprentice cards in play
-  STARTING_COINS: 10,        // Starting coins for each player
-  MOVEMENT_COST: 2,          // Cost to move a creature
-  ATTACK_COST: 1,            // Cost to attack with a creature
-  OPTIONAL_DRAW_COST: 1,     // Cost for optional card draw
-  EVOLUTION_DISCOUNT: 1,     // Discount on evolution cost
-  SECURITY_COUNT: 5,         // Starting security cards
-  INITIAL_HAND_SIZE: 5,      // Initial hand size
-  MIN_DECK_SIZE: 30,         // Minimum deck size
-  MAX_DECK_SIZE: 50,         // Maximum deck size
-  MAX_APPRENTICE_DECK_SIZE: 5 // Maximum apprentice deck size
+  MAX_CREATURES: 6,
+  MAX_FIELD_SLOTS: 9,
+  MAX_APPRENTICES: 3,
+  STARTING_COINS: 10,
+  MOVEMENT_COST: 2,
+  ATTACK_COST: 1,
+  OPTIONAL_DRAW_COST: 1,
+  EVOLUTION_DISCOUNT: 1,
+  SECURITY_COUNT: 5,
+  INITIAL_HAND_SIZE: 5,
+  MIN_DECK_SIZE: 30,
+  MAX_DECK_SIZE: 50,
+  MAX_APPRENTICE_DECK_SIZE: 5
 };
 
-// CP Calculation Weights
 export const CP_WEIGHTS = {
   STR: 100,
   VIT: 80,
@@ -58,31 +47,26 @@ export const CP_WEIGHTS = {
   EXP: 20
 };
 
-// Player IDs
 export const PLAYERS = {
   PLAYER_A: 'playerA',
   PLAYER_B: 'playerB'
 };
 
-// Asset Paths
 export const ASSETS = {
   IMAGES_PATH: 'images/',
   CARD_BACK: 'images/card_back.png'
 };
 
-// Card Position Settings
 export const POSITION_CONFIG = {
-  SUMMON_POSITIONS: [0, 1, 2, 3, 4, 5], // Positions where creatures can be summoned
-  BACK_ROW: [6, 7, 8],                  // Back row positions
-  FRONT_ROW: [0, 1, 2, 3, 4, 5]         // Front row positions
+  SUMMON_POSITIONS: [0, 1, 2, 3, 4, 5],
+  BACK_ROW: [6, 7, 8],
+  FRONT_ROW: [0, 1, 2, 3, 4, 5]
 };
 
-// Default Stats by Class
 export const DEFAULT_STATS = {
   warrior: { STR: 25, VIT: 20, DEX: 15, INT: 10, EXP: 30 },
   mage: { STR: 5, VIT: 10, DEX: 15, INT: 25, EXP: 45 },
   rogue: { STR: 10, VIT: 15, DEX: 25, INT: 20, EXP: 30 },
-  // Advanced classes
   paladin: { STR: 35, VIT: 30, DEX: 25, INT: 40, EXP: 70 },
   knight: { STR: 40, VIT: 35, DEX: 35, INT: 20, EXP: 70 },
   wizard: { STR: 10, VIT: 25, DEX: 35, INT: 40, EXP: 90 },
@@ -91,17 +75,14 @@ export const DEFAULT_STATS = {
   archer: { STR: 20, VIT: 35, DEX: 35, INT: 40, EXP: 70 }
 };
 
-// Attack Ranges by Class
 export const ATTACK_RANGES = {
-  archer: 3,     // Archer has long range
-  wizard: 2,     // Wizard has medium range
-  mage: 2,       // Mage has medium range
-  default: 1     // All other creatures have melee range
+  archer: 3,
+  wizard: 2,
+  mage: 2,
+  default: 1
 };
 
-// Card Database Configuration
 export const CARD_DATABASE = [
-  // Basic Classes
   {
     templateId: 'warrior',
     name: 'Warrior',
@@ -137,7 +118,6 @@ export const CARD_DATABASE = [
     ability: 'Stealth',
     possibleEvolutions: EVOLUTION_PATHS.rogue
   },
-  // Advanced Classes
   {
     templateId: 'paladin',
     name: 'Paladin Guard',
@@ -210,7 +190,6 @@ export const CARD_DATABASE = [
     ability: 'Long Range: Attack range increased to 3',
     evolvedFrom: 'rogue'
   },
-  // Spell cards
   {
     templateId: 'fireball',
     name: 'Fireball',
@@ -233,7 +212,6 @@ export const CARD_DATABASE = [
   }
 ];
 
-// Apprentice Card Database
 export const APPRENTICE_DATABASE = [
   {
     templateId: 'anastasia',
