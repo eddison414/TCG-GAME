@@ -1,3 +1,4 @@
+import { BattleManager } from '../managers/BattleManager.js';
 import { GAME_PHASES, PLAYERS, GAME_CONFIG } from '../constants.js';
 
 export class UIManager {
